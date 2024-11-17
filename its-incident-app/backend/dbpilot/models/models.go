@@ -173,6 +173,26 @@ type EmailPayload struct {
 	EmailData *EmailData `json:"email_data"`
 }
 
+// models/models.go
+
+type ProcessStatus string
+
+const (
+	StatusPending  ProcessStatus = "pending"
+	StatusRunning  ProcessStatus = "running"
+	StatusComplete ProcessStatus = "complete"
+	StatusFailed   ProcessStatus = "failed"
+)
+
+type ProcessingStatus struct {
+	gorm.Model
+	MessageID   string        `gorm:"uniqueIndex" json:"message_id"`
+	Status      ProcessStatus `gorm:"type:varchar(20)" json:"status"`
+	TaskID      string        `json:"task_id,omitempty"`
+	CompletedAt *time.Time    `json:"completed_at,omitempty"`
+	Error       string        `json:"error,omitempty"`
+}
+
 // DB操作のためのメソッド群
 
 // DeleteSessionByEmail はメールアドレスに基づいてセッションを削除

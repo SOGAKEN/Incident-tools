@@ -31,6 +31,10 @@ func setupRouter(db *gorm.DB) *gin.Engine {
 		public.POST("/login", handlers.QueryUser(db))
 		public.POST("/incidents", handlers.CreateIncident(db))
 		public.POST("/emails", handlers.AddEmailHandler(db))
+
+		// 新しい処理状態管理用エンドポイント
+		public.GET("/status/:messageID", handlers.GetProcessingStatus(db))
+		public.PUT("/status/:messageID", handlers.UpdateProcessingStatus(db))
 	}
 
 	// 保護されたエンドポイント
@@ -95,6 +99,7 @@ func main() {
 		&models.APIResponseData{},
 		&models.ErrorLog{},
 		&models.EmailData{},
+		&models.ProcessingStatus{},
 	); err != nil {
 		log.Fatalf("Failed to perform database migration: %v", err)
 	}

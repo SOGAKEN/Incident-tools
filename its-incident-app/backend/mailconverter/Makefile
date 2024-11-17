@@ -4,7 +4,7 @@ REGION = asia-northeast1
 REPOSITORY = 
 
 # サービス名の一覧
-SERVICE = db-pilot
+SERVICE = mail-convertor
 
 # Dockerイメージのプレフィックス（Artifact Registryを使用）
 IMAGE_PREFIX = $(REGION)-docker.pkg.dev/$(PROJECT_ID)/$(REPOSITORY)
@@ -33,5 +33,4 @@ deploy:
 		--platform managed \
 		--allow-unauthenticated \
 		--project ${PROJECT_ID}
-
 
