@@ -2,8 +2,6 @@ package main
 
 import (
 	"context"
-	"fmt"
-	"log"
 	"net/http"
 	"os"
 	"os/signal"
@@ -12,16 +10,77 @@ import (
 
 	"dbpilot/config"
 	"dbpilot/handlers"
+	"dbpilot/logger"
 	"dbpilot/middleware"
 	"dbpilot/models"
 
 	"github.com/gin-gonic/gin"
-	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
-func setupRouter(db *gorm.DB) *gin.Engine {
-	r := gin.Default()
+func main() {
+	// 設定の初期化
+	cfg, err := config.InitConfig()
+	if err != nil {
+		logger.Logger.Fatal("設定の初期化に失敗しました", zap.Error(err))
+	}
+
+	// データベースの初期化
+	db, err := config.GetDB()
+	if err != nil {
+		logger.Logger.Fatal("データベースの取得に失敗しました", zap.Error(err))
+	}
+
+	// データベースのクリーンアップを保証
+	defer func() {
+		if err := config.CloseDatabase(); err != nil {
+			logger.Logger.Error("データベース接続のクローズに失敗しました", zap.Error(err))
+		}
+	}()
+
+	// マイグレーション
+	if err := performMigrations(db); err != nil {
+		logger.Logger.Fatal("マイグレーションに失敗しました", zap.Error(err))
+	}
+
+	// ルーターの設定
+	r := setupRouter(db, cfg)
+
+	// サーバーの設定と起動
+	srv := config.SetupServer(r)
+
+	// グレースフルシャットダウンの実装
+	handleGracefulShutdown(srv, cfg.ShutdownTimeout)
+}
+
+func performMigrations(db *gorm.DB) error {
+	logger.Logger.Info("データベースマイグレーションを開始します")
+	return db.AutoMigrate(
+		&models.User{},
+		&models.Profile{},
+		&models.LoginSession{},
+		&models.Incident{},
+		&models.Response{},
+		&models.IncidentRelation{},
+		&models.APIResponseData{},
+		&models.ErrorLog{},
+		&models.EmailData{},
+		&models.ProcessingStatus{},
+	)
+}
+
+func setupRouter(db *gorm.DB, cfg *config.ServerConfig) *gin.Engine {
+	r := gin.New()
+	r.Use(gin.Logger())
+
+	// ミドルウェア設定
+	middlewareConfig := &middleware.Config{
+		EnableLogger:  true,
+		EnableSession: true,
+		DB:            db,
+	}
+	middleware.SetupMiddleware(r, middlewareConfig)
 
 	// 公開エンドポイント
 	public := r.Group("/api/v1")
@@ -31,15 +90,15 @@ func setupRouter(db *gorm.DB) *gin.Engine {
 		public.POST("/login", handlers.QueryUser(db))
 		public.POST("/incidents", handlers.CreateIncident(db))
 		public.POST("/emails", handlers.AddEmailHandler(db))
-
-		// 新しい処理状態管理用エンドポイント
 		public.GET("/status/:messageID", handlers.GetProcessingStatus(db))
 		public.PUT("/status/:messageID", handlers.UpdateProcessingStatus(db))
 	}
 
 	// 保護されたエンドポイント
 	protected := r.Group("/api/v1")
-	protected.Use(middleware.VerifySession(db))
+	if middlewareConfig.EnableSession {
+		protected.Use(middleware.VerifySession(db))
+	}
 	{
 		// プロフィール関連
 		protected.POST("/profiles", handlers.RegisterProfile(db))
@@ -60,85 +119,36 @@ func setupRouter(db *gorm.DB) *gin.Engine {
 		// セッション関連
 		protected.GET("/sessions", handlers.GetSession(db))
 		protected.DELETE("/sessions", handlers.DeleteSession(db))
+
+		// Workflows用のエンドポイント
+		protected.POST("/api-responses/search", handlers.GetAPIResponseData(db))
 	}
 
 	return r
 }
 
-func main() {
-	// 環境変数の読み込み
-	if err := godotenv.Load(); err != nil {
-		log.Printf("Warning: .env file not found: %v", err)
-	}
-
-	// データベース接続
-	if err := config.ConnectDatabase(); err != nil {
-		log.Fatalf("Failed to connect to database: %v", err)
-	}
-
-	// データベースのクリーンアップを保証
-	defer func() {
-		if err := config.CloseDatabase(); err != nil {
-			log.Printf("Error closing database connection: %v", err)
-		}
-	}()
-
-	db, err := config.GetDB()
-	if err != nil {
-		log.Fatalf("Failed to get database instance: %v", err)
-	}
-
-	// マイグレーション
-	if err := db.AutoMigrate(
-		&models.User{},
-		&models.Profile{},
-		&models.LoginSession{},
-		&models.Incident{},
-		&models.Response{},
-		&models.IncidentRelation{},
-		&models.APIResponseData{},
-		&models.ErrorLog{},
-		&models.EmailData{},
-		&models.ProcessingStatus{},
-	); err != nil {
-		log.Fatalf("Failed to perform database migration: %v", err)
-	}
-
-	// ルーターのセットアップ
-	r := setupRouter(db)
-
-	// サーバーの設定
-	serverPort := os.Getenv("SERVER_PORT")
-	if serverPort == "" {
-		serverPort = "3002"
-	}
-	srv := &http.Server{
-		Addr:    fmt.Sprintf(":%s", serverPort),
-		Handler: r,
-	}
-
-	// グレースフルシャットダウンの実装
+func handleGracefulShutdown(srv *http.Server, timeout time.Duration) {
+	// サーバーを別のゴルーチンで起動
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
-			log.Fatalf("Failed to start server: %v", err)
+			logger.Logger.Fatal("サーバーの起動に失敗しました", zap.Error(err))
 		}
 	}()
 
-	log.Printf("Server is running on port %s", serverPort)
-
-	// シグナルの待ち受け
+	// シグナルの受信設定
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	log.Println("Shutting down server...")
+	logger.Logger.Info("シャットダウンを開始します...")
 
 	// シャットダウンのタイムアウト設定
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
+	// グレースフルシャットダウンの実行
 	if err := srv.Shutdown(ctx); err != nil {
-		log.Fatal("Server forced to shutdown:", err)
+		logger.Logger.Error("サーバーのシャットダウンでエラーが発生", zap.Error(err))
 	}
 
-	log.Println("Server exited properly")
+	logger.Logger.Info("サーバーを正常に終了しました")
 }

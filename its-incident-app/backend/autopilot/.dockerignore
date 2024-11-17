@@ -1,0 +1,10 @@
+# 依存関係
+vendor/
+node_modules/
+
+# ローカル環境用ファイル
+.env
+
+# その他の不要なファイル
+.git/
+.DS_Store

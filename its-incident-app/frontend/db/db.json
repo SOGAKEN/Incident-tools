@@ -1,0 +1,433 @@
+[
+    {
+        "id": 1,
+        "datetime": "2024-10-15 14:30",
+        "status": "未着手",
+        "judgment": "静観",
+        "content": "データベースサーバーへの接続が突然失われました。アプリケーションがデータを取得・保存できない状態です。緊急対応が必要です。データベースサーバーへの接続が突然失われました。アプリケーションがデータを取得・保存できない状態です。緊急対応が必要です。データベースサーバーへの接続が突然失われました。アプリケーションがデータを取得・保存できない状態です。緊急対応が必要です。データベースサーバーへの接続が突然失われました。アプリケーションがデータを取得・保存できない状態です。緊急対応が必要です。",
+        "assignee": "",
+        "priority": "高",
+        "responses": [],
+        "from_email": "alert@system.incidenttools.com",
+        "to_email": "support@incidenttools.com",
+        "subject": "【緊急】データベース接続エラー",
+        "sender": "avaya",
+        "relation": [
+            {
+                "id": 20,
+                "datetime": "2024-10-15 14:45",
+                "status": "対応中",
+                "judgment": "要対応",
+                "content": "データベースサーバーの監視ツールに異常が検出され、接続が不安定になっています。",
+                "assignee": "佐藤花子",
+                "priority": "高",
+                "responses": [],
+                "from_email": "alert@system.incidenttools.com",
+                "to_email": "support@incidenttools.com",
+                "sender": "avaya",
+                "subject": "【連携】データベース監視異常"
+            },
+            {
+                "id": 21,
+                "datetime": "2024-10-15 14:43",
+                "status": "対応中",
+                "judgment": "要対応",
+                "content": "データベースサーバーの監視ツールに異常が検出され、接続が不安定になっています。",
+                "assignee": "佐藤花子",
+                "priority": "高",
+                "responses": [],
+                "from_email": "alert@system.incidenttools.com",
+                "to_email": "support@incidenttools.com",
+                "sender": "avaya",
+                "subject": "【連携】データベース監視異常"
+            },
+            {
+                "id": 22,
+                "datetime": "2024-10-15 14:41",
+                "status": "対応中",
+                "judgment": "要対応",
+                "content": "データベースサーバーの監視ツールに異常が検出され、接続が不安定になっています。",
+                "assignee": "佐藤花子",
+                "priority": "高",
+                "responses": [],
+                "from_email": "alert@system.incidenttools.com",
+                "to_email": "support@incidenttools.com",
+                "sender": "avaya",
+                "subject": "【連携】データベース監視異常"
+            }
+        ],
+        "workflowLogs": [
+            {
+                "id": 1,
+                "title": "接続性チェック",
+                "result": "対象ホストが作業中のため静観",
+                "detailedLog": "ホストA (192.168.1.100): 応答なし\nホストB (192.168.1.101): 応答あり\nホストC (192.168.1.102): 応答なし\n\n結論: 一部のホストが応答していないため、作業中の可能性があります。現時点では静観し、30分後に再度チェックを行います。"
+            }
+        ]
+    },
+    {
+        "id": 2,
+        "datetime": "2024-10-16 09:45",
+        "status": "未着手",
+        "judgment": "要対応",
+        "content": "メールサーバーが停止しています。ユーザーへの通知が送信できていません。",
+        "assignee": "",
+        "priority": "中",
+        "responses": [],
+        "from_email": "alert@system.incidenttools.com",
+        "to_email": "support@incidenttools.com",
+        "sender": "avaya",
+        "subject": "【注意】メールサーバー停止",
+        "relation": [
+            {
+                "id": 21,
+                "datetime": "2024-10-16 10:00",
+                "status": "対応中",
+                "judgment": "要確認",
+                "content": "ネットワークの障害によりメールサーバーの停止が発生しています。",
+                "assignee": "鈴木一郎",
+                "priority": "中",
+                "responses": [],
+                "sender": "avaya",
+                "from_email": "alert@system.incidenttools.com",
+                "to_email": "support@incidenttools.com",
+                "subject": "【関連】ネットワーク障害"
+            }
+        ],
+        "workflowLogs": [
+            {
+                "id": 1,
+                "title": "接続性チェック",
+                "result": "対象ホストのステータスを確認してください。",
+                "detailedLog": "ホストA (192.168.1.100): 応答なし\nホストB (192.168.1.101): 応答あり\nホストC (192.168.1.102): 応答なし\n\n結論: 一部のホストが応答していないため、作業中の可能性があります。現時点では静観し、30分後に再度チェックを行います。"
+            }
+        ]
+    },
+    {
+        "id": 3,
+        "datetime": "2024-10-17 13:20",
+        "status": "未着手",
+        "judgment": "静観",
+        "content": "ウェブサーバーの高負荷が発生していましたが、リソース増強により解消されました。",
+        "assignee": "",
+        "priority": "低",
+        "responses": [],
+        "from_email": "alert@system.incidenttools.com",
+        "to_email": "support@incidenttools.com",
+        "sender": "avaya",
+        "subject": "【解決済み】ウェブサーバー高負荷",
+        "relation": [
+            {
+                "id": 22,
+                "datetime": "2024-10-17 13:00",
+                "status": "対応中",
+                "judgment": "要対応",
+                "content": "負荷分散機能に問題があり、ウェブサーバーのリソースが逼迫しています。",
+                "assignee": "山田太郎",
+                "priority": "高",
+                "responses": [],
+                "sender": "avaya",
+                "from_email": "alert@system.incidenttools.com",
+                "to_email": "support@incidenttools.com",
+                "subject": "【連携】負荷分散機能異常"
+            }
+        ],
+        "workflowLogs": [
+            {
+                "id": 1,
+                "title": "接続性チェック",
+                "result": "対象ホストが作業中のため静観",
+                "detailedLog": "ホストA (192.168.1.100): 応答なし\nホストB (192.168.1.101): 応答あり\nホストC (192.168.1.102): 応答なし\n\n結論: 一部のホストが応答していないため、作業中の可能性があります。現時点では静観し、30分後に再度チェックを行います。"
+            }
+        ]
+    },
+    {
+        "id": 4,
+        "datetime": "2024-10-18 11:10",
+        "status": "未着手",
+        "judgment": "要対応",
+        "content": "ネットワーク接続が頻繁に切断されており、複数の拠点で報告されています。",
+        "assignee": "",
+        "priority": "高",
+        "responses": [],
+        "sender": "avaya",
+        "from_email": "alert@system.incidenttools.com",
+        "to_email": "support@incidenttools.com",
+        "subject": "【緊急】ネットワーク接続障害",
+        "relation": [
+            {
+                "id": 23,
+                "datetime": "2024-10-18 11:30",
+                "status": "対応中",
+                "judgment": "要確認",
+                "content": "一部拠点でルーター障害が確認されています。",
+                "assignee": "鈴木一郎",
+                "priority": "中",
+                "responses": [],
+                "sender": "avaya",
+                "from_email": "alert@system.incidenttools.com",
+                "to_email": "support@incidenttools.com",
+                "subject": "【関連】ルーター障害"
+            }
+        ],
+        "workflowLogs": [
+            {
+                "id": 1,
+                "title": "接続性チェック",
+                "result": "対象ホストが作業中のため静観",
+                "detailedLog": "ホストA (192.168.1.100): 応答なし\nホストB (192.168.1.101): 応答あり\nホストC (192.168.1.102): 応答なし\n\n結論: 一部のホストが応答していないため、作業中の可能性があります。現時点では静観し、30分後に再度チェックを行います。"
+            }
+        ]
+    },
+    {
+        "id": 5,
+        "datetime": "2024-10-19 15:40",
+        "status": "未着手",
+        "judgment": "静観",
+        "content": "アプリケーションの一部機能が利用できないとの報告が複数あります。",
+        "assignee": "",
+        "priority": "中",
+        "responses": [],
+        "sender": "avaya",
+        "from_email": "alert@system.incidenttools.com",
+        "to_email": "support@incidenttools.com",
+        "subject": "【注意】アプリケーション機能不全",
+        "relation": [
+            {
+                "id": 24,
+                "datetime": "2024-10-19 15:45",
+                "status": "対応中",
+                "judgment": "要確認",
+                "content": "データベースクエリの遅延が一部機能に影響を与えています。",
+                "assignee": "佐藤花子",
+                "priority": "中",
+                "responses": [],
+                "sender": "avaya",
+                "from_email": "alert@system.incidenttools.com",
+                "to_email": "support@incidenttools.com",
+                "subject": "【関連】データベースクエリ遅延"
+            }
+        ],
+        "workflowLogs": [
+            {
+                "id": 1,
+                "title": "接続性チェック",
+                "result": "対象ホストが作業中のため静観",
+                "detailedLog": "ホストA (192.168.1.100): 応答なし\nホストB (192.168.1.101): 応答あり\nホストC (192.168.1.102): 応答なし\n\n結論: 一部のホストが応答していないため、作業中の可能性があります。現時点では静観し、30分後に再度チェックを行います。"
+            }
+        ]
+    },
+    {
+        "id": 6,
+        "datetime": "2024-10-20 08:55",
+        "status": "未着手",
+        "judgment": "要対応",
+        "content": "バックアップシステムの不具合が発生しましたが、復旧完了しました。",
+        "assignee": "",
+        "priority": "低",
+        "responses": [],
+        "sender": "avaya",
+        "from_email": "alert@system.incidenttools.com",
+        "to_email": "support@incidenttools.com",
+        "subject": "【解決済み】バックアップシステム不具合",
+        "relation": [
+            {
+                "id": 25,
+                "datetime": "2024-10-20 09:00",
+                "status": "対応中",
+                "judgment": "要確認",
+                "content": "バックアップシステムの定期メンテナンス中にエラーが発生しました。",
+                "assignee": "山田太郎",
+                "priority": "低",
+                "responses": [],
+                "sender": "avaya",
+                "from_email": "alert@system.incidenttools.com",
+                "to_email": "support@incidenttools.com",
+                "subject": "【関連】バックアップメンテナンスエラー"
+            }
+        ],
+        "workflowLogs": [
+            {
+                "id": 1,
+                "title": "接続性チェック",
+                "result": "対象ホストが作業中のため静観",
+                "detailedLog": "ホストA (192.168.1.100): 応答なし\nホストB (192.168.1.101): 応答あり\nホストC (192.168.1.102): 応答なし\n\n結論: 一部のホストが応答していないため、作業中の可能性があります。現時点では静観し、30分後に再度チェックを行います。"
+            }
+        ]
+    },
+    {
+        "id": 7,
+        "datetime": "2024-10-21 17:30",
+        "status": "未着手",
+        "judgment": "要対応",
+        "content": "ファイルサーバーの容量が限界に達しています。至急対応が必要です。",
+        "assignee": "",
+        "priority": "高",
+        "responses": [],
+        "sender": "avaya",
+        "from_email": "alert@system.incidenttools.com",
+        "to_email": "support@incidenttools.com",
+        "subject": "【緊急】ファイルサーバー容量不足",
+        "relation": [
+            {
+                "id": 26,
+                "datetime": "2024-10-21 17:35",
+                "status": "対応中",
+                "judgment": "要確認",
+                "content": "ファイルサーバーの容量不足の影響で一部のアプリケーションが動作停止しています。",
+                "assignee": "佐藤花子",
+                "priority": "高",
+                "responses": [],
+                "sender": "avaya",
+                "from_email": "alert@system.incidenttools.com",
+                "to_email": "support@incidenttools.com",
+                "subject": "【関連】アプリケーション停止"
+            }
+        ],
+        "workflowLogs": [
+            {
+                "id": 1,
+                "title": "接続性チェック",
+                "result": "対象ホストが作業中のため静観",
+                "detailedLog": "ホストA (192.168.1.100): 応答なし\nホストB (192.168.1.101): 応答あり\nホストC (192.168.1.102): 応答なし\n\n結論: 一部のホストが応答していないため、作業中の可能性があります。現時点では静観し、30分後に再度チェックを行います。"
+            }
+        ]
+    },
+    {
+        "id": 8,
+        "datetime": "2024-10-22 12:15",
+        "status": "未着手",
+        "judgment": "静観",
+        "content": "複数のユーザーからログインできないとの報告が寄せられています。",
+        "assignee": "",
+        "priority": "中",
+        "responses": [],
+        "sender": "avaya",
+        "from_email": "alert@system.incidenttools.com",
+        "to_email": "support@incidenttools.com",
+        "subject": "【注意】ログイン障害",
+        "relation": [
+            {
+                "id": 27,
+                "datetime": "2024-10-22 12:30",
+                "status": "対応中",
+                "judgment": "要対応",
+                "content": "認証サーバーの一部で問題が発生しています。",
+                "assignee": "山田太郎",
+                "priority": "中",
+                "responses": [],
+                "sender": "avaya",
+                "from_email": "alert@system.incidenttools.com",
+                "to_email": "support@incidenttools.com",
+                "subject": "【関連】認証サーバー障害"
+            }
+        ],
+        "workflowLogs": [
+            {
+                "id": 1,
+                "title": "接続性チェック",
+                "result": "対象ホストが作業中のため静観",
+                "detailedLog": "ホストA (192.168.1.100): 応答なし\nホストB (192.168.1.101): 応答あり\nホストC (192.168.1.102): 応答なし\n\n結論: 一部のホストが応答していないため、作業中の可能性があります。現時点では静観し、30分後に再度チェックを行います。"
+            }
+        ]
+    },
+    {
+        "id": 9,
+        "datetime": "2024-10-23 14:00",
+        "status": "未着手",
+        "judgment": "要対応",
+        "content": "DNSサーバーの設定ミスが原因で一部のドメインが解決できない状態でしたが、修正完了しました。",
+        "assignee": "",
+        "priority": "低",
+        "responses": [],
+        "sender": "avaya",
+        "from_email": "alert@system.incidenttools.com",
+        "to_email": "support@incidenttools.com",
+        "subject": "【解決済み】DNS設定ミス",
+        "relation": [],
+        "workflowLogs": [
+            {
+                "id": 1,
+                "title": "接続性チェック",
+                "result": "対象ホストが作業中のため静観",
+                "detailedLog": "ホストA (192.168.1.100): 応答なし\nホストB (192.168.1.101): 応答あり\nホストC (192.168.1.102): 応答なし\n\n結論: 一部のホストが応答していないため、作業中の可能性があります。現時点では静観し、30分後に再度チェックを行います。"
+            }
+        ]
+    },
+    {
+        "id": 10,
+        "datetime": "2024-10-24 09:50",
+        "status": "解決済み",
+        "judgment": "要対応",
+        "content": "APIサーバーからの応答が遅延しており、アプリケーションが正常に動作していません。",
+        "assignee": "佐藤花子",
+        "priority": "高",
+        "responses": [],
+        "sender": "avaya",
+        "from_email": "alert@system.incidenttools.com",
+        "to_email": "support@incidenttools.com",
+        "subject": "【緊急】API応答遅延",
+        "relation": [
+            {
+                "id": 29,
+                "datetime": "2024-10-24 10:00",
+                "status": "対応中",
+                "judgment": "要確認",
+                "content": "ネットワーク遅延がAPIサーバーのパフォーマンスに影響を与えています。",
+                "assignee": "鈴木一郎",
+                "priority": "高",
+                "responses": [],
+                "sender": "avaya",
+                "from_email": "alert@system.incidenttools.com",
+                "to_email": "support@incidenttools.com",
+                "subject": "【関連】ネットワーク遅延"
+            }
+        ],
+        "workflowLogs": [
+            {
+                "id": 1,
+                "title": "接続性チェック",
+                "result": "対象ホストが作業中のため静観",
+                "detailedLog": "ホストA (192.168.1.100): 応答なし\nホストB (192.168.1.101): 応答あり\nホストC (192.168.1.102): 応答なし\n\n結論: 一部のホストが応答していないため、作業中の可能性があります。現時点では静観し、30分後に再度チェックを行います。"
+            }
+        ]
+    },
+    {
+        "id": 11,
+        "datetime": "2024-10-24 09:50",
+        "status": "解決済み",
+        "judgment": "静観",
+        "content": "APIサーバーからの応答が遅延しており、アプリケーションが正常に動作していません。",
+        "assignee": "佐藤花子",
+        "priority": "高",
+        "responses": [],
+        "sender": "avaya",
+        "from_email": "alert@system.incidenttools.com",
+        "to_email": "support@incidenttools.com",
+        "subject": "【緊急】API応答遅延",
+        "relation": [
+            {
+                "id": 29,
+                "datetime": "2024-10-24 10:00",
+                "status": "対応中",
+                "judgment": "要確認",
+                "content": "ネットワーク遅延がAPIサーバーのパフォーマンスに影響を与えています。",
+                "assignee": "鈴木一郎",
+                "priority": "高",
+                "responses": [],
+                "sender": "avaya",
+                "from_email": "alert@system.incidenttools.com",
+                "to_email": "support@incidenttools.com",
+                "subject": "【関連】ネットワーク遅延"
+            }
+        ],
+        "workflowLogs": [
+            {
+                "id": 1,
+                "title": "接続性チェック",
+                "result": "対象ホストが作業中のため静観",
+                "detailedLog": "ホストA (192.168.1.100): 応答なし\nホストB (192.168.1.101): 応答あり\nホストC (192.168.1.102): 応答なし\n\n結論: 一部のホストが応答していないため、作業中の可能性があります。現時点では静観し、30分後に再度チェックを行います。"
+            }
+        ]
+    }
+]

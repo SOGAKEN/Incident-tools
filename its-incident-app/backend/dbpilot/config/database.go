@@ -1,15 +1,16 @@
 package config
 
 import (
+	"dbpilot/logger"
 	"errors"
 	"fmt"
-	"log"
 	"os"
 	"time"
 
+	"go.uber.org/zap"
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
-	"gorm.io/gorm/logger"
+	gormlogger "gorm.io/gorm/logger"
 )
 
 var DB *gorm.DB
@@ -25,21 +26,19 @@ func ConnectDatabase() error {
 	}
 
 	// ログレベルの設定
-	logLevel := logger.Silent // デフォルトは Silent
+	logLevel := gormlogger.Silent
 	if os.Getenv("DEBUG") == "true" {
-		logLevel = logger.Info
+		logLevel = gormlogger.Info
 	}
 
 	// カスタムロガーの設定
-	newLogger := logger.New(
-		log.New(os.Stdout, "\r\n", log.LstdFlags), // io writer
-		logger.Config{
-			SlowThreshold:             time.Second, // スロークエリとみなす閾値
-			LogLevel:                  logLevel,    // ログレベル
-			IgnoreRecordNotFoundError: true,        // record not found エラーを無視
-			Colorful:                  false,       // カラー表示を無効化
-		},
-	)
+	zapLogger := logger.Logger.Named("gorm")
+	newLogger := logger.NewGormZapLogger(zapLogger, gormlogger.Config{
+		SlowThreshold:             time.Second,
+		LogLevel:                  logLevel,
+		IgnoreRecordNotFoundError: true,
+		Colorful:                  false,
+	})
 
 	// データベース接続文字列の構築
 	dsn := fmt.Sprintf(
@@ -59,6 +58,10 @@ func ConnectDatabase() error {
 			return time.Now().In(jst)
 		},
 	}
+
+	logger.Logger.Info("データベースに接続します",
+		zap.String("host", os.Getenv("DB_HOST")),
+		zap.String("database", os.Getenv("DB_NAME")))
 
 	// データベースへの接続
 	var err error
@@ -83,6 +86,8 @@ func ConnectDatabase() error {
 		return fmt.Errorf("failed to ping database: %w", err)
 	}
 
+	logger.Logger.Info("データベースへの接続に成功しました")
+
 	return nil
 }
 
@@ -104,6 +109,8 @@ func CloseDatabase() error {
 	if err != nil {
 		return fmt.Errorf("failed to get database instance: %w", err)
 	}
+
+	logger.Logger.Info("データベース接続をクローズします")
 
 	if err := sqlDB.Close(); err != nil {
 		return fmt.Errorf("failed to close database connection: %w", err)

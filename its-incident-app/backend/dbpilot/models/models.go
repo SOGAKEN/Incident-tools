@@ -58,6 +58,7 @@ type Incident struct {
 	Status    string    `gorm:"size:50;not null"`
 	Assignee  string    `gorm:"size:100;not null"`
 	Vender    int
+	MessageID string             `gorm:"size:100"`
 	Responses []Response         `gorm:"foreignKey:IncidentID"`
 	Relations []IncidentRelation `gorm:"foreignKey:IncidentID"`
 	APIData   APIResponseData    `gorm:"foreignKey:IncidentID"`
@@ -129,6 +130,7 @@ type OutputsData struct {
 type APIRequest struct {
 	TaskID        string `json:"task_id"`
 	WorkflowRunID string `json:"workflow_run_id"`
+	MessageID     string `json:"message_id"`
 	Data          struct {
 		ID          string      `json:"id"`
 		WorkflowID  string      `json:"workflow_id"`
@@ -149,6 +151,7 @@ type ErrorLog struct {
 	WorkflowRunID string `gorm:"size:100"`
 	WorkflowID    string `gorm:"size:100"`
 	Status        string `gorm:"size:50"`
+	MessageID     string `gorm:"size:100"`
 	RawJSON       string `gorm:"type:jsonb"`
 }
 
@@ -171,6 +174,52 @@ type EmailData struct {
 type EmailPayload struct {
 	MessageID string     `json:"message_id"`
 	EmailData *EmailData `json:"email_data"`
+}
+
+// APIResponseDataQuery は検索条件を定義する構造体
+type APIResponseDataQuery struct {
+	// ID関連
+	IncidentID    *uint   `json:"incident_id,omitempty"`
+	TaskID        *string `json:"task_id,omitempty"`
+	WorkflowRunID *string `json:"workflow_run_id,omitempty"`
+	WorkflowID    *string `json:"workflow_id,omitempty"`
+	Status        *string `json:"status,omitempty"`
+
+	// テキストフィールド
+	Body         *string `json:"body,omitempty"`
+	User         *string `json:"user,omitempty"`
+	Host         *string `json:"host,omitempty"`
+	Priority     *string `json:"priority,omitempty"`
+	Subject      *string `json:"subject,omitempty"`
+	From         *string `json:"from,omitempty"`
+	Place        *string `json:"place,omitempty"`
+	IncidentText *string `json:"incident_text,omitempty"`
+	Time         *string `json:"time,omitempty"`
+	Judgment     *string `json:"judgment,omitempty"`
+	Sender       *string `json:"sender,omitempty"`
+	Final        *string `json:"final,omitempty"`
+
+	// 数値範囲
+	ElapsedTimeMin *float64 `json:"elapsed_time_min,omitempty"`
+	ElapsedTimeMax *float64 `json:"elapsed_time_max,omitempty"`
+	TotalTokensMin *int     `json:"total_tokens_min,omitempty"`
+	TotalTokensMax *int     `json:"total_tokens_max,omitempty"`
+	TotalStepsMin  *int     `json:"total_steps_min,omitempty"`
+	TotalStepsMax  *int     `json:"total_steps_max,omitempty"`
+
+	// 時間範囲
+	CreatedAtStart  *int64 `json:"created_at_start,omitempty"`
+	CreatedAtEnd    *int64 `json:"created_at_end,omitempty"`
+	FinishedAtStart *int64 `json:"finished_at_start,omitempty"`
+	FinishedAtEnd   *int64 `json:"finished_at_end,omitempty"`
+
+	// ページネーション
+	Limit  *int `json:"limit,omitempty"`
+	Offset *int `json:"offset,omitempty"`
+
+	// ソート
+	SortBy        *string `json:"sort_by,omitempty"`
+	SortDirection *string `json:"sort_direction,omitempty"` // asc or desc
 }
 
 // models/models.go
