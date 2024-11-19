@@ -29,7 +29,6 @@ func NewDBPilotService(baseURL, serviceToken string) *DBPilotService {
 		},
 	}
 
-	// 初期化時のログ
 	logger.Logger.Info("DBPilotサービスを初期化しました",
 		zap.Bool("has_base_url", baseURL != ""),
 		zap.Bool("has_token", serviceToken != ""),
@@ -41,20 +40,17 @@ func NewDBPilotService(baseURL, serviceToken string) *DBPilotService {
 
 func (s *DBPilotService) SaveEmail(emailData *models.EmailData, messageID string) error {
 	startTime := time.Now()
-
-	// 基本的なログフィールド
 	logFields := []zap.Field{
 		zap.String("message_id", messageID),
 		zap.String("operation", "SaveEmail"),
 	}
 
-	// EmailDataのデバッグログ
+	// メールデータの詳細ログ
 	if emailDataJSON, err := json.MarshalIndent(emailData, "", "  "); err == nil {
 		logger.Logger.Debug("メールデータ",
 			append(logFields, zap.String("email_data", string(emailDataJSON)))...)
 	}
 
-	// ペイロードの作成
 	payload := models.EmailPayload{
 		MessageID: messageID,
 		EmailData: emailData,
@@ -67,7 +63,6 @@ func (s *DBPilotService) SaveEmail(emailData *models.EmailData, messageID string
 		return fmt.Errorf("failed to marshal email payload: %v", err)
 	}
 
-	// リクエストの作成
 	req, err := s.createRequest("POST", "/emails", jsonData)
 	if err != nil {
 		logger.Logger.Error("リクエストの作成に失敗しました",
@@ -75,14 +70,12 @@ func (s *DBPilotService) SaveEmail(emailData *models.EmailData, messageID string
 		return fmt.Errorf("failed to create request: %v", err)
 	}
 
-	// リクエスト情報のログ
-	logger.Logger.Info("DBPilotへリクエストを送信します",
+	logger.Logger.Debug("DBPilotへリクエストを送信します",
 		append(logFields,
 			zap.String("url", req.URL.String()),
 			zap.String("method", req.Method),
 			zap.Int("content_length", len(jsonData)))...)
 
-	// リクエスト実行
 	resp, err := s.client.Do(req)
 	if err != nil {
 		logger.Logger.Error("DBPilotへのリクエストに失敗しました",
@@ -91,21 +84,26 @@ func (s *DBPilotService) SaveEmail(emailData *models.EmailData, messageID string
 	}
 	defer resp.Body.Close()
 
-	// レスポンス処理
 	respBody, _ := io.ReadAll(resp.Body)
 	duration := time.Since(startTime)
 
-	respFields := append(logFields,
-		zap.Int("status_code", resp.StatusCode),
-		zap.String("response_body", string(respBody)),
-		zap.Duration("duration", duration))
-
 	if resp.StatusCode != http.StatusOK {
-		logger.Logger.Error("DBPilotがエラーを返しました", respFields...)
+		logger.Logger.Error("DBPilotがエラーを返しました",
+			append(logFields,
+				zap.Int("status_code", resp.StatusCode),
+				zap.String("response_body", string(respBody)))...)
 		return fmt.Errorf("failed to save email, status: %d, response: %s", resp.StatusCode, string(respBody))
 	}
 
-	logger.Logger.Info("メール保存が完了しました", respFields...)
+	logger.Logger.Info("メール保存が完了しました",
+		append(logFields,
+			zap.Int("status_code", resp.StatusCode),
+			zap.Duration("duration", duration))...)
+
+	// レスポンスボディの詳細はDEBUGレベルで
+	logger.Logger.Debug("メール保存レスポンス",
+		append(logFields, zap.String("response_body", string(respBody)))...)
+
 	return nil
 }
 
@@ -116,7 +114,6 @@ func (s *DBPilotService) SaveIncident(aiResponse *models.AIResponse, messageID s
 		zap.String("task_id", aiResponse.TaskID),
 	}
 
-	// APIRequestの形式に合わせてペイロードを構築
 	payload := struct {
 		TaskID        string `json:"task_id"`
 		WorkflowRunID string `json:"workflow_run_id"`
@@ -155,7 +152,6 @@ func (s *DBPilotService) SaveIncident(aiResponse *models.AIResponse, messageID s
 		Data:          aiResponse.Data,
 	}
 
-	// デバッグログ
 	if payloadJSON, err := json.MarshalIndent(payload, "", "  "); err == nil {
 		logger.Logger.Debug("インシデントペイロード",
 			append(logFields, zap.String("payload", string(payloadJSON)))...)
@@ -168,7 +164,6 @@ func (s *DBPilotService) SaveIncident(aiResponse *models.AIResponse, messageID s
 		return fmt.Errorf("failed to marshal incident payload: %v", err)
 	}
 
-	// 以下は既存のコード
 	req, err := s.createRequest("POST", "/incidents", jsonData)
 	if err != nil {
 		logger.Logger.Error("インシデントリクエストの作成に失敗しました",
@@ -176,7 +171,7 @@ func (s *DBPilotService) SaveIncident(aiResponse *models.AIResponse, messageID s
 		return fmt.Errorf("failed to create request: %v", err)
 	}
 
-	logger.Logger.Info("インシデントデータを送信します",
+	logger.Logger.Debug("インシデントデータを送信します",
 		append(logFields,
 			zap.String("url", req.URL.String()),
 			zap.String("method", req.Method),
@@ -190,7 +185,6 @@ func (s *DBPilotService) SaveIncident(aiResponse *models.AIResponse, messageID s
 	}
 	defer resp.Body.Close()
 
-	// レスポンスボディを読み取り
 	respBody, _ := io.ReadAll(resp.Body)
 
 	if resp.StatusCode != http.StatusOK {
@@ -202,9 +196,11 @@ func (s *DBPilotService) SaveIncident(aiResponse *models.AIResponse, messageID s
 	}
 
 	logger.Logger.Info("インシデントの保存が完了しました",
-		append(logFields,
-			zap.Int("status_code", resp.StatusCode),
-			zap.String("response_body", string(respBody)))...)
+		append(logFields, zap.Int("status_code", resp.StatusCode))...)
+
+	logger.Logger.Debug("インシデント保存レスポンス",
+		append(logFields, zap.String("response_body", string(respBody)))...)
+
 	return nil
 }
 
@@ -234,16 +230,12 @@ func (s *DBPilotService) createRequest(method, path string, payload []byte) (*ht
 	return req, nil
 }
 
-// service/todbpilot.go に追加
-
-// GetProcessingStatus は処理状態を取得します
 func (s *DBPilotService) GetProcessingStatus(messageID string) (*models.ProcessingStatus, error) {
 	logFields := []zap.Field{
 		zap.String("message_id", messageID),
 		zap.String("operation", "GetProcessingStatus"),
 	}
 
-	// リクエストの作成
 	req, err := s.createRequest("GET", fmt.Sprintf("/status/%s", messageID), nil)
 	if err != nil {
 		logger.Logger.Error("リクエストの作成に失敗しました",
@@ -251,13 +243,11 @@ func (s *DBPilotService) GetProcessingStatus(messageID string) (*models.Processi
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
 
-	// リクエスト情報のログ
-	logger.Logger.Info("処理状態を確認します",
+	logger.Logger.Debug("処理状態を確認します",
 		append(logFields,
 			zap.String("url", req.URL.String()),
 			zap.String("method", req.Method))...)
 
-	// リクエスト実行
 	resp, err := s.client.Do(req)
 	if err != nil {
 		logger.Logger.Error("処理状態の取得に失敗しました",
@@ -266,9 +256,8 @@ func (s *DBPilotService) GetProcessingStatus(messageID string) (*models.Processi
 	}
 	defer resp.Body.Close()
 
-	// レスポンスの処理
 	if resp.StatusCode == http.StatusNotFound {
-		logger.Logger.Info("指定されたメッセージIDの処理状態が見つかりません", logFields...)
+		logger.Logger.Debug("指定されたメッセージIDの処理状態が見つかりません", logFields...)
 		return nil, fmt.Errorf("processing status not found for message_id: %s", messageID)
 	}
 
@@ -282,7 +271,6 @@ func (s *DBPilotService) GetProcessingStatus(messageID string) (*models.Processi
 			resp.StatusCode, string(respBody))
 	}
 
-	// レスポンスのデコード
 	var status models.ProcessingStatus
 	if err := json.NewDecoder(resp.Body).Decode(&status); err != nil {
 		logger.Logger.Error("レスポンスのデコードに失敗しました",
@@ -298,7 +286,6 @@ func (s *DBPilotService) GetProcessingStatus(messageID string) (*models.Processi
 	return &status, nil
 }
 
-// UpdateProcessingStatus は処理状態を更新します
 func (s *DBPilotService) UpdateProcessingStatus(status *models.ProcessingStatus) error {
 	logFields := []zap.Field{
 		zap.String("message_id", status.MessageID),
@@ -306,7 +293,6 @@ func (s *DBPilotService) UpdateProcessingStatus(status *models.ProcessingStatus)
 		zap.String("status", string(status.Status)),
 	}
 
-	// ペイロードの作成
 	jsonData, err := json.Marshal(status)
 	if err != nil {
 		logger.Logger.Error("ステータスのJSONエンコードに失敗しました",
@@ -314,7 +300,6 @@ func (s *DBPilotService) UpdateProcessingStatus(status *models.ProcessingStatus)
 		return fmt.Errorf("failed to marshal status: %v", err)
 	}
 
-	// リクエストの作成
 	req, err := s.createRequest("PUT", fmt.Sprintf("/status/%s", status.MessageID), jsonData)
 	if err != nil {
 		logger.Logger.Error("リクエストの作成に失敗しました",
@@ -322,8 +307,7 @@ func (s *DBPilotService) UpdateProcessingStatus(status *models.ProcessingStatus)
 		return fmt.Errorf("failed to create request: %v", err)
 	}
 
-	// リクエスト実行
-	logger.Logger.Info("処理状態を更新します", logFields...)
+	logger.Logger.Debug("処理状態を更新します", logFields...)
 
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -343,6 +327,6 @@ func (s *DBPilotService) UpdateProcessingStatus(status *models.ProcessingStatus)
 			resp.StatusCode, string(respBody))
 	}
 
-	logger.Logger.Info("処理状態を更新しました", logFields...)
+	logger.Logger.Debug("処理状態を更新しました", logFields...)
 	return nil
 }
