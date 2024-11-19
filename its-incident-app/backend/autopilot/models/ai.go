@@ -1,5 +1,7 @@
 package models
 
+import "encoding/json"
+
 // WorkflowLog はワークフローのログ情報を定義します
 type WorkflowLog struct {
 	Answers map[string]string // answer1, answer2, ... を格納
@@ -42,4 +44,20 @@ type AIResponse struct {
 type AIResponsePayload struct {
 	MessageID  string      `json:"message_id"`
 	AIResponse *AIResponse `json:"ai_response"`
+}
+type OutputsData struct {
+	Body         string          `json:"body"`
+	User         string          `json:"user"`
+	WorkflowLogs json.RawMessage `json:"workflowLogs"`
+	Host         string          `json:"host"`
+	Priority     string          `json:"priority"`
+	Subject      string          `json:"subject"`
+	From         string          `json:"from"`
+	Place        string          `json:"place"`
+	Incident     string          `json:"incident"`
+	Time         string          `json:"time"`
+	IncidentID   int             `json:"incidentID"`
+	Judgment     string          `json:"judgment"`
+	Sender       string          `json:"sender"`
+	Final        string          `json:"final"`
 }

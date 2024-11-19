@@ -145,6 +145,10 @@ func (h *EmailHandler) processAIAndSaveIncident(ctx context.Context, emailData *
 			append(logFields, zap.Error(err))...)
 		return err
 	}
+	// デバッグログの追加
+	logger.Logger.Debug("AI処理のレスポンス",
+		append(logFields,
+			zap.Any("ai_response", aiResponse))...)
 
 	// TaskIDを更新
 	status.SetRunning(aiResponse.TaskID)
@@ -156,6 +160,11 @@ func (h *EmailHandler) processAIAndSaveIncident(ctx context.Context, emailData *
 
 	logger.Logger.Info("AI処理が完了しました",
 		append(logFields, zap.String("ai_task_id", aiResponse.TaskID))...)
+
+	logger.Logger.Debug("インシデント保存リクエスト",
+		append(logFields,
+			zap.String("ai_task_id", aiResponse.TaskID),
+			zap.Any("incident_data", aiResponse))...)
 
 	// インシデントの保存
 	if err := h.dbpilotService.SaveIncident(aiResponse, messageID); err != nil {

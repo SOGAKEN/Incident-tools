@@ -116,9 +116,49 @@ func (s *DBPilotService) SaveIncident(aiResponse *models.AIResponse, messageID s
 		zap.String("task_id", aiResponse.TaskID),
 	}
 
-	payload := models.AIResponsePayload{
-		MessageID:  messageID,
-		AIResponse: aiResponse,
+	// APIRequestの形式に合わせてペイロードを構築
+	payload := struct {
+		TaskID        string `json:"task_id"`
+		WorkflowRunID string `json:"workflow_run_id"`
+		MessageID     string `json:"message_id"`
+		Data          struct {
+			ID         string `json:"id"`
+			WorkflowID string `json:"workflow_id"`
+			Status     string `json:"status"`
+			Outputs    struct {
+				Body         string               `json:"body"`
+				User         string               `json:"user"`
+				WorkflowLogs []models.WorkflowLog `json:"workflowLogs"`
+				Host         string               `json:"host"`
+				Priority     string               `json:"priority"`
+				Subject      string               `json:"subject"`
+				From         string               `json:"from"`
+				Place        string               `json:"place"`
+				Incident     string               `json:"incident"`
+				Time         string               `json:"time"`
+				IncidentID   int                  `json:"incidentID"`
+				Judgment     string               `json:"judgment"`
+				Sender       string               `json:"sender"`
+				Final        string               `json:"final"`
+			} `json:"outputs"`
+			Error       interface{} `json:"error"`
+			ElapsedTime float64     `json:"elapsed_time"`
+			TotalTokens int         `json:"total_tokens"`
+			TotalSteps  int         `json:"total_steps"`
+			CreatedAt   int64       `json:"created_at"`
+			FinishedAt  int64       `json:"finished_at"`
+		} `json:"data"`
+	}{
+		TaskID:        aiResponse.TaskID,
+		WorkflowRunID: aiResponse.WorkflowRunID,
+		MessageID:     messageID,
+		Data:          aiResponse.Data,
+	}
+
+	// デバッグログ
+	if payloadJSON, err := json.MarshalIndent(payload, "", "  "); err == nil {
+		logger.Logger.Debug("インシデントペイロード",
+			append(logFields, zap.String("payload", string(payloadJSON)))...)
 	}
 
 	jsonData, err := json.Marshal(payload)
@@ -128,6 +168,7 @@ func (s *DBPilotService) SaveIncident(aiResponse *models.AIResponse, messageID s
 		return fmt.Errorf("failed to marshal incident payload: %v", err)
 	}
 
+	// 以下は既存のコード
 	req, err := s.createRequest("POST", "/incidents", jsonData)
 	if err != nil {
 		logger.Logger.Error("インシデントリクエストの作成に失敗しました",
@@ -135,7 +176,11 @@ func (s *DBPilotService) SaveIncident(aiResponse *models.AIResponse, messageID s
 		return fmt.Errorf("failed to create request: %v", err)
 	}
 
-	logger.Logger.Info("インシデントデータを送信します", logFields...)
+	logger.Logger.Info("インシデントデータを送信します",
+		append(logFields,
+			zap.String("url", req.URL.String()),
+			zap.String("method", req.Method),
+			zap.Int("content_length", len(jsonData)))...)
 
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -145,8 +190,10 @@ func (s *DBPilotService) SaveIncident(aiResponse *models.AIResponse, messageID s
 	}
 	defer resp.Body.Close()
 
+	// レスポンスボディを読み取り
+	respBody, _ := io.ReadAll(resp.Body)
+
 	if resp.StatusCode != http.StatusOK {
-		respBody, _ := io.ReadAll(resp.Body)
 		logger.Logger.Error("インシデント保存でエラーが発生しました",
 			append(logFields,
 				zap.Int("status_code", resp.StatusCode),
@@ -154,7 +201,10 @@ func (s *DBPilotService) SaveIncident(aiResponse *models.AIResponse, messageID s
 		return fmt.Errorf("failed to save incident, status: %d, response: %s", resp.StatusCode, string(respBody))
 	}
 
-	logger.Logger.Info("インシデントの保存が完了しました", logFields...)
+	logger.Logger.Info("インシデントの保存が完了しました",
+		append(logFields,
+			zap.Int("status_code", resp.StatusCode),
+			zap.String("response_body", string(respBody)))...)
 	return nil
 }
 
