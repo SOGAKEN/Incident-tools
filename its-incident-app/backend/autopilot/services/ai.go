@@ -21,7 +21,6 @@ type AIService struct {
 	longClient  *http.Client
 }
 
-// タイムアウトの定数
 const (
 	defaultShortTimeout = 30 * time.Second
 	defaultLongTimeout  = 90 * time.Second
@@ -60,7 +59,6 @@ func (s *AIService) ProcessEmail(ctx context.Context, emailData *models.EmailDat
 		return nil, fmt.Errorf("AI token is not set")
 	}
 
-	// リクエストペイロードの作成
 	apiPayload := models.APIPayload{
 		User: "system",
 		Inputs: struct {
@@ -74,7 +72,6 @@ func (s *AIService) ProcessEmail(ctx context.Context, emailData *models.EmailDat
 		},
 	}
 
-	// ペイロードのJSONエンコード
 	payloadBytes, err := json.Marshal(apiPayload)
 	if err != nil {
 		logger.Logger.Error("ペイロードのJSONエンコードに失敗しました",
@@ -84,11 +81,11 @@ func (s *AIService) ProcessEmail(ctx context.Context, emailData *models.EmailDat
 		return nil, fmt.Errorf("failed to marshal payload: %v", err)
 	}
 
+	// リクエストペイロードはDEBUGレベル
 	logger.Logger.Debug("AI APIリクエストペイロード",
 		zap.String("payload", string(payloadBytes)),
 	)
 
-	// リクエストの作成
 	req, err := http.NewRequestWithContext(ctx, "POST", s.endpoint, bytes.NewBuffer(payloadBytes))
 	if err != nil {
 		logger.Logger.Error("HTTPリクエストの作成に失敗しました",
@@ -101,7 +98,7 @@ func (s *AIService) ProcessEmail(ctx context.Context, emailData *models.EmailDat
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+s.token)
 
-	// 長時間タイムアウトのクライアントを使用
+	// リクエスト送信情報はDEBUGレベル
 	logger.Logger.Debug("AI APIにリクエストを送信します",
 		zap.String("method", req.Method),
 		zap.String("endpoint", req.URL.String()),
@@ -131,6 +128,7 @@ func (s *AIService) ProcessEmail(ctx context.Context, emailData *models.EmailDat
 		return nil, fmt.Errorf("failed to decode AI response: %v", err)
 	}
 
+	// バリデーション実行
 	if err := s.ValidateResponse(&aiResponse); err != nil {
 		logger.Logger.Error("AIレスポンスの検証に失敗しました",
 			zap.Error(err),
@@ -139,6 +137,7 @@ func (s *AIService) ProcessEmail(ctx context.Context, emailData *models.EmailDat
 		return nil, fmt.Errorf("invalid AI response: %v", err)
 	}
 
+	// 処理完了のログは重要なのでINFOレベル
 	logger.Logger.Info("AI処理が完了しました",
 		zap.String("task_id", aiResponse.TaskID),
 		zap.String("status", aiResponse.Data.Status),
@@ -158,6 +157,7 @@ func (s *AIService) ValidateResponse(response *models.AIResponse) error {
 		zap.Bool("has_error", response.Data.Error != nil),
 	}
 
+	// バリデーションエラーは重要なのでERRORレベル
 	if response.TaskID == "" {
 		logger.Logger.Error("AIレスポンスにtask_idが存在しません", logFields...)
 		return fmt.Errorf("AI response missing task_id")
@@ -174,6 +174,7 @@ func (s *AIService) ValidateResponse(response *models.AIResponse) error {
 		return fmt.Errorf("AI processing error: %v", response.Data.Error)
 	}
 
+	// バリデーション完了はDEBUGレベル
 	logger.Logger.Debug("AIレスポンスのバリデーションが完了しました", logFields...)
 	return nil
 }

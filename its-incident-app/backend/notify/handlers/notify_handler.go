@@ -5,7 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"net/http"
-	"notify/models"
+	"notification/models"
 	"os"
 	"strings"
 
@@ -29,7 +29,7 @@ func NotifyHandler(c *gin.Context) {
 	if err := SendTeamsNotification(teamsWebhookURL, req); err != nil {
 		RespondWithError(c, http.StatusInternalServerError, fmt.Sprintf("Failed to send notification: %v", err))
 		return
-	}	
+	}
 
 	authHeader := c.GetHeader("Authorization")
 	token := strings.TrimPrefix(authHeader, "Bearer ")
@@ -48,8 +48,8 @@ func NotifyHandler(c *gin.Context) {
 
 func SendTeamsNotification(webhookURL string, notification models.NotificationRequest) error {
 	teamsReq := map[string]interface{}{
-		"title": notification.Title,
-		"content":  notification.Content,
+		"title":   notification.Title,
+		"content": notification.Content,
 	}
 
 	teamsReqJSON, err := json.Marshal(teamsReq)

@@ -34,7 +34,6 @@ func (h *EmailHandler) HandleEmailReceive(c *gin.Context) {
 		return
 	}
 
-	// 共通のログフィールドを設定
 	logFields := []zap.Field{
 		zap.String("message_id", messageID),
 		zap.String("handler", "HandleEmailReceive"),
@@ -55,7 +54,6 @@ func (h *EmailHandler) HandleEmailReceive(c *gin.Context) {
 	if err := h.dbpilotService.UpdateProcessingStatus(status); err != nil {
 		logger.Logger.Error("処理状態の初期化に失敗しました",
 			append(logFields, zap.Error(err))...)
-		// 処理は継続する
 	}
 
 	// メールデータの保存
@@ -71,7 +69,7 @@ func (h *EmailHandler) HandleEmailReceive(c *gin.Context) {
 		return
 	}
 
-	logger.Logger.Info("メールデータを保存しました", logFields...)
+	logger.Logger.Debug("メールデータを保存しました", logFields...)
 
 	// 非同期処理を開始する前に202レスポンスを返す
 	c.JSON(http.StatusAccepted, gin.H{
@@ -88,13 +86,12 @@ func (h *EmailHandler) processEmailAsync(messageID string, emailData *models.Ema
 	processCtx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
 
-	logger.Logger.Info("非同期AI処理を開始します", logFields...)
+	logger.Logger.Debug("非同期AI処理を開始します", logFields...)
 
 	if err := h.processAIAndSaveIncident(processCtx, emailData, messageID); err != nil {
 		logger.Logger.Error("AI処理とインシデント保存に失敗しました",
 			append(logFields, zap.Error(err))...)
 
-		// エラー状態を保存
 		status := &models.ProcessingStatus{
 			MessageID: messageID,
 		}
@@ -106,7 +103,6 @@ func (h *EmailHandler) processEmailAsync(messageID string, emailData *models.Ema
 		return
 	}
 
-	// 処理完了を保存
 	status := &models.ProcessingStatus{
 		MessageID: messageID,
 	}
@@ -116,7 +112,7 @@ func (h *EmailHandler) processEmailAsync(messageID string, emailData *models.Ema
 			append(logFields, zap.Error(err))...)
 	}
 
-	logger.Logger.Info("非同期AI処理が完了しました", logFields...)
+	logger.Logger.Debug("非同期AI処理が完了しました", logFields...)
 }
 
 func (h *EmailHandler) processAIAndSaveIncident(ctx context.Context, emailData *models.EmailData, messageID string) error {
@@ -125,58 +121,46 @@ func (h *EmailHandler) processAIAndSaveIncident(ctx context.Context, emailData *
 		zap.String("process", "AI_processing"),
 	}
 
-	// 処理状態を実行中に更新
 	status := &models.ProcessingStatus{
 		MessageID: messageID,
 	}
 	status.SetRunning("")
 	if err := h.dbpilotService.UpdateProcessingStatus(status); err != nil {
-		logger.Logger.Error("実行中状態の更新に失敗しました",
+		logger.Logger.Debug("実行中状態の更新に失敗しました",
 			append(logFields, zap.Error(err))...)
-		// 処理は継続
 	}
 
 	logger.Logger.Info("AI処理を開始します", logFields...)
 
-	// AI処理の実行
 	aiResponse, err := h.aiService.ProcessEmail(ctx, emailData)
 	if err != nil {
 		logger.Logger.Error("AI処理に失敗しました",
 			append(logFields, zap.Error(err))...)
 		return err
 	}
-	// デバッグログの追加
-	logger.Logger.Debug("AI処理のレスポンス",
-		append(logFields,
-			zap.Any("ai_response", aiResponse))...)
 
-	// TaskIDを更新
+	logger.Logger.Debug("AI処理のレスポンス",
+		append(logFields, zap.Any("ai_response", aiResponse))...)
+
 	status.SetRunning(aiResponse.TaskID)
 	if err := h.dbpilotService.UpdateProcessingStatus(status); err != nil {
-		logger.Logger.Error("TaskIDの更新に失敗しました",
+		logger.Logger.Debug("TaskIDの更新に失敗しました",
 			append(logFields, zap.Error(err))...)
-		// 処理は継続
 	}
 
 	logger.Logger.Info("AI処理が完了しました",
-		append(logFields, zap.String("ai_task_id", aiResponse.TaskID))...)
+		append(logFields, zap.String("task_id", aiResponse.TaskID))...)
 
-	logger.Logger.Debug("インシデント保存リクエスト",
-		append(logFields,
-			zap.String("ai_task_id", aiResponse.TaskID),
-			zap.Any("incident_data", aiResponse))...)
-
-	// インシデントの保存
 	if err := h.dbpilotService.SaveIncident(aiResponse, messageID); err != nil {
 		logger.Logger.Error("インシデントの保存に失敗しました",
 			append(logFields,
-				zap.String("ai_task_id", aiResponse.TaskID),
+				zap.String("task_id", aiResponse.TaskID),
 				zap.Error(err))...)
 		return err
 	}
 
-	logger.Logger.Info("インシデントを保存しました",
-		append(logFields, zap.String("ai_task_id", aiResponse.TaskID))...)
+	logger.Logger.Debug("インシデントを保存しました",
+		append(logFields, zap.String("task_id", aiResponse.TaskID))...)
 	return nil
 }
 

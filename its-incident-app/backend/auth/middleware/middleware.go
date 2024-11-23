@@ -10,7 +10,7 @@ import (
 	"strings"
 	"time"
 
-	"notification/logger"
+	"auth/logger"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -182,5 +182,42 @@ func logRequestWithLevel(c *gin.Context, fields ...zap.Field) {
 		logger.Logger.Warn("クライアントエラー", fields...)
 	default:
 		logger.Logger.Info("リクエスト完了", fields...)
+	}
+}
+
+// SkipAuthMiddleware 特定のパスの認証をスキップするミドルウェアを生成
+func SkipAuthMiddleware(skipPaths ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 現在のパスがスキップ対象かチェック
+		path := c.Request.URL.Path
+		for _, skipPath := range skipPaths {
+			if path == skipPath {
+				c.Next()
+				return
+			}
+		}
+
+		// AuthMiddlewareと同じ処理を実行
+		authHeader := c.GetHeader("Authorization")
+		if authHeader == "" {
+			logger.Logger.Warn("認証ヘッダーが見つかりません")
+			abortWithError(c, http.StatusUnauthorized, "unauthorized")
+			return
+		}
+
+		if !strings.HasPrefix(authHeader, "Bearer ") {
+			logUnauthorizedRequest(c)
+			abortWithError(c, http.StatusUnauthorized, "invalid authorization header format")
+			return
+		}
+
+		token := strings.TrimPrefix(authHeader, "Bearer ")
+		if token != os.Getenv("SERVICE_TOKEN") {
+			logUnauthorizedRequest(c)
+			abortWithError(c, http.StatusUnauthorized, "invalid token")
+			return
+		}
+
+		c.Next()
 	}
 }

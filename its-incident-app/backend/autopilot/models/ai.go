@@ -3,9 +3,7 @@ package models
 import "encoding/json"
 
 // WorkflowLog はワークフローのログ情報を定義します
-type WorkflowLog struct {
-	Answers map[string]string // answer1, answer2, ... を格納
-}
+type WorkflowLog map[string]string
 
 // AIResponse は外部APIからのレスポンスを定義します
 type AIResponse struct {

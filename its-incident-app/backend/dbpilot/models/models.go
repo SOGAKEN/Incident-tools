@@ -32,7 +32,7 @@ func (b *BaseModel) BeforeUpdate(tx *gorm.DB) error {
 
 type User struct {
 	BaseModel
-	Email    string `gorm:"unique"`
+	Email    string `gorm:"unique;type:varchar(255);not null"`
 	Password string
 	Profile  Profile `gorm:"foreignKey:UserID"`
 }
@@ -240,6 +240,27 @@ type ProcessingStatus struct {
 	TaskID      string        `json:"task_id,omitempty"`
 	CompletedAt *time.Time    `json:"completed_at,omitempty"`
 	Error       string        `json:"error,omitempty"`
+}
+
+type LoginToken struct {
+	gorm.Model
+	Email     string    `gorm:"type:varchar(255);index"` // 外部キー制約用
+	Token     string    `gorm:"uniqueIndex;type:varchar(255);not null"`
+	ExpiresAt time.Time `gorm:"not null"`
+	Used      bool      `gorm:"default:false"`
+}
+
+type LoginTokenRequest struct {
+	Email     string    `json:"email" binding:"required,email"`
+	Token     string    `json:"token" binding:"required"`
+	ExpiresAt time.Time `json:"expires_at" binding:"required"`
+}
+
+type TokenVerificationResponse struct {
+	Email    string `json:"email"`
+	UserID   uint   `json:"user_id"`
+	Name     string `json:"name,omitempty"`
+	ImageURL string `json:"image_url,omitempty"`
 }
 
 // DB操作のためのメソッド群

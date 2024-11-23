@@ -45,7 +45,7 @@ func (s *DBPilotService) SaveEmail(emailData *models.EmailData, messageID string
 		zap.String("operation", "SaveEmail"),
 	}
 
-	// メールデータの詳細ログ
+	// デバッグログ: メールデータの詳細
 	if emailDataJSON, err := json.MarshalIndent(emailData, "", "  "); err == nil {
 		logger.Logger.Debug("メールデータ",
 			append(logFields, zap.String("email_data", string(emailDataJSON)))...)
@@ -70,6 +70,7 @@ func (s *DBPilotService) SaveEmail(emailData *models.EmailData, messageID string
 		return fmt.Errorf("failed to create request: %v", err)
 	}
 
+	// デバッグログ: リクエスト情報
 	logger.Logger.Debug("DBPilotへリクエストを送信します",
 		append(logFields,
 			zap.String("url", req.URL.String()),
@@ -95,14 +96,11 @@ func (s *DBPilotService) SaveEmail(emailData *models.EmailData, messageID string
 		return fmt.Errorf("failed to save email, status: %d, response: %s", resp.StatusCode, string(respBody))
 	}
 
-	logger.Logger.Info("メール保存が完了しました",
-		append(logFields,
-			zap.Int("status_code", resp.StatusCode),
-			zap.Duration("duration", duration))...)
-
-	// レスポンスボディの詳細はDEBUGレベルで
+	// デバッグログ: レスポンスの詳細
 	logger.Logger.Debug("メール保存レスポンス",
-		append(logFields, zap.String("response_body", string(respBody)))...)
+		append(logFields,
+			zap.String("response_body", string(respBody)),
+			zap.Duration("duration", duration))...)
 
 	return nil
 }
@@ -152,6 +150,7 @@ func (s *DBPilotService) SaveIncident(aiResponse *models.AIResponse, messageID s
 		Data:          aiResponse.Data,
 	}
 
+	// デバッグログ: ペイロードの詳細
 	if payloadJSON, err := json.MarshalIndent(payload, "", "  "); err == nil {
 		logger.Logger.Debug("インシデントペイロード",
 			append(logFields, zap.String("payload", string(payloadJSON)))...)
@@ -171,6 +170,7 @@ func (s *DBPilotService) SaveIncident(aiResponse *models.AIResponse, messageID s
 		return fmt.Errorf("failed to create request: %v", err)
 	}
 
+	// デバッグログ: リクエスト情報
 	logger.Logger.Debug("インシデントデータを送信します",
 		append(logFields,
 			zap.String("url", req.URL.String()),
@@ -195,9 +195,7 @@ func (s *DBPilotService) SaveIncident(aiResponse *models.AIResponse, messageID s
 		return fmt.Errorf("failed to save incident, status: %d, response: %s", resp.StatusCode, string(respBody))
 	}
 
-	logger.Logger.Info("インシデントの保存が完了しました",
-		append(logFields, zap.Int("status_code", resp.StatusCode))...)
-
+	// デバッグログ: レスポンスの詳細
 	logger.Logger.Debug("インシデント保存レスポンス",
 		append(logFields, zap.String("response_body", string(respBody)))...)
 
@@ -243,6 +241,7 @@ func (s *DBPilotService) GetProcessingStatus(messageID string) (*models.Processi
 		return nil, fmt.Errorf("failed to create request: %v", err)
 	}
 
+	// デバッグログ: リクエスト情報
 	logger.Logger.Debug("処理状態を確認します",
 		append(logFields,
 			zap.String("url", req.URL.String()),
@@ -278,7 +277,8 @@ func (s *DBPilotService) GetProcessingStatus(messageID string) (*models.Processi
 		return nil, fmt.Errorf("failed to decode processing status: %v", err)
 	}
 
-	logger.Logger.Info("処理状態を取得しました",
+	// デバッグログ: ステータス情報
+	logger.Logger.Debug("処理状態を取得しました",
 		append(logFields,
 			zap.String("status", string(status.Status)),
 			zap.String("task_id", status.TaskID))...)
@@ -307,6 +307,7 @@ func (s *DBPilotService) UpdateProcessingStatus(status *models.ProcessingStatus)
 		return fmt.Errorf("failed to create request: %v", err)
 	}
 
+	// デバッグログ: 更新リクエスト
 	logger.Logger.Debug("処理状態を更新します", logFields...)
 
 	resp, err := s.client.Do(req)
@@ -327,6 +328,7 @@ func (s *DBPilotService) UpdateProcessingStatus(status *models.ProcessingStatus)
 			resp.StatusCode, string(respBody))
 	}
 
+	// デバッグログ: 更新完了
 	logger.Logger.Debug("処理状態を更新しました", logFields...)
 	return nil
 }

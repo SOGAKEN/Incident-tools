@@ -57,13 +57,19 @@ func main() {
 func performMigrations(db *gorm.DB) error {
 	logger.Logger.Info("データベースマイグレーションを開始します")
 	return db.AutoMigrate(
-		&models.User{},
-		&models.Profile{},
-		&models.LoginSession{},
-		&models.Incident{},
-		&models.Response{},
-		&models.IncidentRelation{},
-		&models.APIResponseData{},
+		// 1. 基本テーブル（他のテーブルから参照されるもの）
+		&models.User{},     // 他のテーブルから参照される
+		&models.Incident{}, // ResponseとIncidentRelationから参照される
+
+		// 2. 外部キー制約を持つテーブル
+		&models.Profile{},          // User への参照
+		&models.LoginToken{},       // User への参照
+		&models.LoginSession{},     // User への参照
+		&models.Response{},         // Incident への参照
+		&models.IncidentRelation{}, // Incident への参照
+		&models.APIResponseData{},  // Incident への参照
+
+		// 3. 独立したテーブル（外部キー制約のないもの）
 		&models.ErrorLog{},
 		&models.EmailData{},
 		&models.ProcessingStatus{},
@@ -81,7 +87,6 @@ func setupRouter(db *gorm.DB, cfg *config.ServerConfig) *gin.Engine {
 		DB:            db,
 	}
 	middleware.SetupMiddleware(r, middlewareConfig)
-
 	// 公開エンドポイント
 	public := r.Group("/api/v1")
 	{
@@ -92,6 +97,9 @@ func setupRouter(db *gorm.DB, cfg *config.ServerConfig) *gin.Engine {
 		public.POST("/emails", handlers.AddEmailHandler(db))
 		public.GET("/status/:messageID", handlers.GetProcessingStatus(db))
 		public.PUT("/status/:messageID", handlers.UpdateProcessingStatus(db))
+		public.POST("/login-tokens", handlers.CreateLoginToken(db))
+		public.GET("/login-tokens/verify", handlers.VerifyLoginToken(db))
+		public.POST("/accounts", handlers.CreateAccount(db))
 	}
 
 	// 保護されたエンドポイント
