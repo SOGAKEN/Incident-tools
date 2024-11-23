@@ -23,70 +23,76 @@ func main() {
 	// 設定の初期化
 	cfg, err := config.InitConfig()
 	if err != nil {
-		logger.Logger.Fatal("設定の初期化に失敗しました", zap.Error(err))
+		logger.Logger.Fatal("設定の初期化に失敗しました",
+			zap.Error(err),
+			zap.String("service", cfg.ServiceName),
+			zap.String("environment", cfg.Environment),
+		)
+	}
+
+	// ログレベルの設定
+	if err := logger.LogLevel.UnmarshalText([]byte(cfg.LogLevel.String())); err != nil {
+		logger.Logger.Fatal("ログレベルの設定に失敗しました",
+			zap.Error(err),
+			zap.String("intended_level", cfg.LogLevel.String()),
+		)
 	}
 
 	// データベースの初期化
 	db, err := config.GetDB()
 	if err != nil {
-		logger.Logger.Fatal("データベースの取得に失敗しました", zap.Error(err))
+		logger.Logger.Fatal("データベースの取得に失敗しました",
+			zap.Error(err),
+		)
 	}
 
 	// データベースのクリーンアップを保証
 	defer func() {
 		if err := config.CloseDatabase(); err != nil {
-			logger.Logger.Error("データベース接続のクローズに失敗しました", zap.Error(err))
+			logger.Logger.Error("データベース接続のクローズに失敗しました",
+				zap.Error(err),
+			)
 		}
 	}()
 
 	// マイグレーション
 	if err := performMigrations(db); err != nil {
-		logger.Logger.Fatal("マイグレーションに失敗しました", zap.Error(err))
+		logger.Logger.Fatal("マイグレーションに失敗しました",
+			zap.Error(err),
+		)
 	}
 
 	// ルーターの設定
 	r := setupRouter(db, cfg)
 
-	// サーバーの設定と起動
+	// サーバーの設定と起動（config.SetupServerを使用）
 	srv := config.SetupServer(r)
+
+	// アプリケーション情報のログ出力
+	logger.Logger.Info("アプリケーションを起動します",
+		zap.String("service", cfg.ServiceName),
+		zap.String("environment", cfg.Environment),
+		zap.String("port", cfg.Port),
+		zap.String("gin_mode", cfg.GinMode),
+	)
 
 	// グレースフルシャットダウンの実装
 	handleGracefulShutdown(srv, cfg.ShutdownTimeout)
 }
 
-func performMigrations(db *gorm.DB) error {
-	logger.Logger.Info("データベースマイグレーションを開始します")
-	return db.AutoMigrate(
-		// 1. 基本テーブル（他のテーブルから参照されるもの）
-		&models.User{},     // 他のテーブルから参照される
-		&models.Incident{}, // ResponseとIncidentRelationから参照される
-
-		// 2. 外部キー制約を持つテーブル
-		&models.Profile{},          // User への参照
-		&models.LoginToken{},       // User への参照
-		&models.LoginSession{},     // User への参照
-		&models.Response{},         // Incident への参照
-		&models.IncidentRelation{}, // Incident への参照
-		&models.APIResponseData{},  // Incident への参照
-
-		// 3. 独立したテーブル（外部キー制約のないもの）
-		&models.ErrorLog{},
-		&models.EmailData{},
-		&models.ProcessingStatus{},
-	)
-}
-
 func setupRouter(db *gorm.DB, cfg *config.ServerConfig) *gin.Engine {
 	r := gin.New()
-	r.Use(gin.Logger())
 
-	// ミドルウェア設定
+	r.Use(gin.Logger())
+	// 基本的なミドルウェア設定
 	middlewareConfig := &middleware.Config{
-		EnableLogger:  true,
-		EnableSession: true,
-		DB:            db,
+		EnableLogger: true,
+		DB:           db,
 	}
 	middleware.SetupMiddleware(r, middlewareConfig)
+
+	logger.Logger.Info("ルーターの設定を開始します")
+
 	// 公開エンドポイント
 	public := r.Group("/api/v1")
 	{
@@ -104,9 +110,7 @@ func setupRouter(db *gorm.DB, cfg *config.ServerConfig) *gin.Engine {
 
 	// 保護されたエンドポイント
 	protected := r.Group("/api/v1")
-	if middlewareConfig.EnableSession {
-		protected.Use(middleware.VerifySession(db))
-	}
+	protected.Use(middleware.VerifySession(db))
 	{
 		// プロフィール関連
 		protected.POST("/profiles", handlers.RegisterProfile(db))
@@ -132,28 +136,51 @@ func setupRouter(db *gorm.DB, cfg *config.ServerConfig) *gin.Engine {
 		protected.POST("/api-responses/search", handlers.GetAPIResponseData(db))
 	}
 
+	logger.Logger.Info("ルーターの設定が完了しました")
 	return r
 }
 
+func performMigrations(db *gorm.DB) error {
+	logger.Logger.Info("データベースマイグレーションを開始します")
+
+	err := db.AutoMigrate(
+		&models.User{},
+		&models.Incident{},
+		&models.Profile{},
+		&models.LoginToken{},
+		&models.LoginSession{},
+		&models.Response{},
+		&models.IncidentRelation{},
+		&models.APIResponseData{},
+		&models.ErrorLog{},
+		&models.EmailData{},
+		&models.ProcessingStatus{},
+	)
+
+	if err != nil {
+		return err
+	}
+
+	logger.Logger.Info("データベースマイグレーションが完了しました")
+	return nil
+}
+
 func handleGracefulShutdown(srv *http.Server, timeout time.Duration) {
-	// サーバーを別のゴルーチンで起動
 	go func() {
 		if err := srv.ListenAndServe(); err != nil && err != http.ErrServerClosed {
 			logger.Logger.Fatal("サーバーの起動に失敗しました", zap.Error(err))
 		}
 	}()
 
-	// シグナルの受信設定
 	quit := make(chan os.Signal, 1)
 	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
 	<-quit
-	logger.Logger.Info("シャットダウンを開始します...")
 
-	// シャットダウンのタイムアウト設定
+	logger.Logger.Info("シャットダウンを開始します...", zap.Duration("timeout", timeout))
+
 	ctx, cancel := context.WithTimeout(context.Background(), timeout)
 	defer cancel()
 
-	// グレースフルシャットダウンの実行
 	if err := srv.Shutdown(ctx); err != nil {
 		logger.Logger.Error("サーバーのシャットダウンでエラーが発生", zap.Error(err))
 	}

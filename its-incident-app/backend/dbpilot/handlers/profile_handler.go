@@ -3,9 +3,11 @@ package handlers
 import (
 	"net/http"
 
+	"dbpilot/logger"
 	"dbpilot/models"
 
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 	"gorm.io/gorm"
 )
 
@@ -59,26 +61,44 @@ func RegisterProfile(db *gorm.DB) gin.HandlerFunc {
 // GetProfile はセッションIDを使ってユーザーのプロフィール情報を取得します
 func GetProfile(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
+		// セッション情報の取得
 		sessionID, exists := c.Get("session")
 		if !exists {
+			logger.Logger.Error("セッション情報が見つかりません")
 			c.JSON(http.StatusInternalServerError, gin.H{"error": "Session not found"})
 			return
 		}
 
+		// 文字列型へ変換
+		sessionIDStr, ok := sessionID.(string)
+		if !ok {
+			logger.Logger.Error("セッションIDの型が不正です")
+			c.JSON(http.StatusInternalServerError, gin.H{"error": "Invalid session format"})
+			return
+		}
+
+		// セッションの検証
 		var session models.LoginSession
-		if err := db.Where("session_id = ?", sessionID).First(&session).Error; err != nil {
+		if err := db.Where("session_id = ?", sessionIDStr).First(&session).Error; err != nil {
+			logger.Logger.Error("セッションの検証に失敗しました",
+				zap.Error(err),
+				zap.String("session_id", sessionIDStr),
+			)
 			c.JSON(http.StatusUnauthorized, gin.H{"error": "Invalid session"})
 			return
 		}
 
-		// ユーザーとそのプロフィール情報を取得
+		// ユーザーとプロフィール情報の取得
 		var user models.User
 		if err := db.Preload("Profile").Where("id = ?", session.UserID).First(&user).Error; err != nil {
+			logger.Logger.Error("ユーザーまたはプロフィール情報の取得に失敗しました",
+				zap.Error(err),
+				zap.Uint("user_id", session.UserID),
+			)
 			c.JSON(http.StatusNotFound, gin.H{"error": "User or profile not found"})
 			return
 		}
 
-		// プロフィール情報をレスポンス
 		c.JSON(http.StatusOK, ProfileResponse{
 			UserID:   user.ID,
 			Email:    user.Email,

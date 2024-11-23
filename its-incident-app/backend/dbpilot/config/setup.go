@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/joho/godotenv"
+	"go.uber.org/zap"
 	"go.uber.org/zap/zapcore"
 )
 
@@ -59,12 +60,20 @@ func InitConfig() (*ServerConfig, error) {
 
 // SetupServer はサーバーの設定を行います
 func SetupServer(r *gin.Engine) *http.Server {
-	config, _ := InitConfig()
+	config, err := InitConfig()
+	if err != nil {
+		logger.Logger.Fatal("サーバー設定の初期化に失敗しました", zap.Error(err))
+	}
+
+	// ルート情報の表示
 	displayServerConfig(r, config)
 
 	return &http.Server{
 		Addr:              ":" + config.Port,
 		Handler:           r,
+		ReadTimeout:       config.ReadTimeout,
+		WriteTimeout:      config.WriteTimeout,
+		IdleTimeout:       config.IdleTimeout,
 		ReadHeaderTimeout: 5 * time.Second,
 	}
 }
