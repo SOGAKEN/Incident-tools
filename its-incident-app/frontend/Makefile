@@ -1,8 +1,7 @@
 # GCP設定
-PROJECT_ID = bell-its-437206
+PROJECT_ID = docker-cloudran-works
 REGION = asia-northeast1
-REPOSITORY = otasukemaru
-
+REPOSITORY = incident-service
 # サービス名の一覧
 SERVICE = web-front
 
@@ -17,7 +16,7 @@ all: build push deploy
 # Dockerイメージをビルド
 build:
 	@echo "Building $(SERVICE)..."
-	docker build -t $(IMAGE_PREFIX)/$(SERVICE):latest .
+	docker build --platform linux/amd64 --no-cache -t $(IMAGE_PREFIX)/$(SERVICE):latest .
 
 # Dockerイメージをプッシュ
 push:

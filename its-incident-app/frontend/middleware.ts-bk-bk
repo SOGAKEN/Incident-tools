@@ -1,0 +1,111 @@
+import { NextResponse } from 'next/server'
+import type { NextRequest } from 'next/server'
+
+async function verifyToken(token: string): Promise<{ valid: boolean; email?: string }> {
+    try {
+        // デバッグログの追加
+        console.log('Verifying token:', token)
+        console.log('Auth Service URL:', process.env.NEXT_PUBLIC_AUTH_SERVICE_URL)
+
+        const response = await fetch(`${process.env.NEXT_PUBLIC_AUTH_SERVICE_URL}/verify-token?token=${token}`, {
+            method: 'GET',
+            headers: {
+                'Content-Type': 'application/json',
+                Authorization: `Bearer ${process.env.AUTH_SERVICE_TOKEN}`
+            }
+        })
+
+        console.log('Verification response status:', response.status)
+
+        if (!response.ok) {
+            console.log('Token verification failed')
+            return { valid: false }
+        }
+
+        const data = await response.json()
+        console.log('Verification response data:', data)
+        return { valid: true, email: data.email }
+    } catch (error) {
+        console.error('Token verification error:', error)
+        return { valid: false }
+    }
+}
+
+export async function middleware(request: NextRequest) {
+    // リクエストの詳細をログ出力
+    console.log('Request URL:', request.url)
+    console.log('Request headers:', Object.fromEntries(request.headers))
+
+    const { pathname, searchParams } = new URL(request.url)
+    console.log('Pathname:', pathname)
+    console.log('Search params:', Object.fromEntries(searchParams))
+
+    const token = searchParams.get('token')
+    const redirectTo = searchParams.get('redirectTo')
+
+    // CloudRunの環境変数チェック
+    console.log('Environment:', {
+        NODE_ENV: process.env.NODE_ENV,
+        AUTH_SERVICE_URL: process.env.NEXT_PUBLIC_AUTH_SERVICE_URL
+    })
+
+    // セッションIDの確認
+    const sessionId = request.cookies.get('session_id')?.value
+    console.log('Session ID:', sessionId)
+
+    // CloudRunのヘッダー確認
+    const forwardedProto = request.headers.get('x-forwarded-proto')
+    console.log('X-Forwarded-Proto:', forwardedProto)
+
+    if (token) {
+        const { valid, email } = await verifyToken(token)
+        if (valid && email) {
+            const targetUrl = new URL(redirectTo || '/account', request.url)
+            targetUrl.searchParams.set('email', email)
+
+            // プロトコルの強制
+            if (forwardedProto === 'https') {
+                targetUrl.protocol = 'https:'
+            }
+
+            const response = NextResponse.redirect(targetUrl)
+
+            // Cookie設定にドメインを追加
+            const domain = new URL(request.url).hostname
+            response.cookies.set('session_id', email, {
+                httpOnly: true,
+                secure: process.env.NODE_ENV === 'production',
+                sameSite: 'lax',
+                maxAge: 60 * 60 * 24,
+                domain: domain,
+                path: '/'
+            })
+
+            return response
+        } else {
+            return NextResponse.redirect(new URL('/login?error=invalid_token', request.url))
+        }
+    }
+
+    if (!sessionId) {
+        const loginUrl = new URL('/login', request.url)
+        loginUrl.searchParams.set('redirectTo', pathname + searchParams.toString())
+
+        // プロトコルの強制
+        if (forwardedProto === 'https') {
+            loginUrl.protocol = 'https:'
+        }
+
+        return NextResponse.redirect(loginUrl)
+    }
+
+    return NextResponse.next()
+}
+
+// マッチャーの修正
+export const config = {
+    matcher: [
+        // 静的アセットとAPI以外のすべてのルート
+        '/((?!api|_next/static|_next/image|favicon.ico|login).*)'
+    ]
+}

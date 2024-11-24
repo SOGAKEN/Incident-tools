@@ -28,14 +28,6 @@ export function ProfileRegistrationComponent() {
     const [isLoading, setIsLoading] = useState(true)
     const userData = useContext(UserContext)
 
-    useEffect(() => {
-        if (!userData?.name) {
-            setIsLoading(false)
-        } else {
-            redirect('/dashboard')
-        }
-    }, [userData, router])
-
     const { execute, error } = useFetch<Profile>('/api/createProfile', {
         method: 'POST',
         body: {

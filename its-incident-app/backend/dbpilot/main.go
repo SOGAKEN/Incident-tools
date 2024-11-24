@@ -97,7 +97,6 @@ func setupRouter(db *gorm.DB, cfg *config.ServerConfig) *gin.Engine {
 	public := r.Group("/api/v1")
 	{
 		public.POST("/users", handlers.SaveUser(db))
-		public.POST("/sessions", handlers.CreateSession(db))
 		public.POST("/login", handlers.QueryUser(db))
 		public.POST("/incidents", handlers.CreateIncident(db))
 		public.POST("/emails", handlers.AddEmailHandler(db))
@@ -106,6 +105,7 @@ func setupRouter(db *gorm.DB, cfg *config.ServerConfig) *gin.Engine {
 		public.POST("/login-tokens", handlers.CreateLoginToken(db))
 		public.GET("/login-tokens/verify", handlers.VerifyLoginToken(db))
 		public.POST("/accounts", handlers.CreateAccount(db))
+		public.POST("/sessions", handlers.CreateSession(db))
 	}
 
 	// 保護されたエンドポイント

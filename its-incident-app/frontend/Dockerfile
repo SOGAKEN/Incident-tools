@@ -1,26 +1,26 @@
-# ベースイメージとして Bun を使用
-FROM oven/bun:latest
-
-# 作業ディレクトリを設定
+# ビルドステージ
+FROM oven/bun:latest AS builder
 WORKDIR /app
 
-# パッケージファイルとロックファイルをコピー
 COPY package.json bun.lockb ./
-
-# 依存関係をインストール
 RUN bun install
 
-# アプリケーションコードをコピー
 COPY . .
-
-# アプリケーションをビルド
 RUN bun run build
 
-# ポートを公開
-EXPOSE 8080
+# 実行ステージ
+FROM node:20-slim AS runner
+WORKDIR /app
 
-# Cloud Run 用の環境変数を設定
+# 必要なファイルのコピー
+COPY --from=builder /app/.next/standalone ./
+COPY --from=builder /app/.next/static ./.next/static
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/middleware.ts ./middleware.ts
+
+# 環境変数の設定
+ENV NODE_ENV=production
 ENV PORT=8080
 
-# アプリケーションを起動
-CMD ["bun", "run", "start"]
+# アプリケーションの起動
+CMD ["node", "server.js"]

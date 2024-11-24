@@ -1,4 +1,3 @@
-// handlers/login_token_handler.go
 package handlers
 
 import (
