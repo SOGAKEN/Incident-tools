@@ -40,7 +40,7 @@ async function verifyToken(token: string): Promise<{ valid: boolean; email?: str
         }
 
         const data = await response.json()
-        return { valid: true, email: data.email }
+        return { valid: true, email: data.data.email }
     } catch (error) {
         console.error('Token verification error:', error)
         return { valid: false }

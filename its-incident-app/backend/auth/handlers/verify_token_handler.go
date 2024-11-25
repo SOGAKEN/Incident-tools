@@ -12,9 +12,16 @@ import (
 	"go.uber.org/zap"
 )
 
-type TokenVerificationResponse struct {
-	Email  string `json:"email"`
-	UserID uint   `json:"user_id,omitempty"`
+// DBPilotResponse はDBPilotからのレスポンスを格納する構造体
+type DBPilotResponse struct {
+	Success bool `json:"success"`
+	Data    struct {
+		Email    string `json:"email"`
+		UserID   uint   `json:"user_id"`
+		Name     string `json:"name,omitempty"`
+		ImageURL string `json:"image_url,omitempty"`
+	} `json:"data"`
+	Error string `json:"error,omitempty"`
 }
 
 func VerifyToken(c *gin.Context) {
@@ -51,9 +58,6 @@ func VerifyToken(c *gin.Context) {
 		return
 	}
 
-	// ヘッダーの設定
-	req.Header.Set("Content-Type", "application/json")
-
 	// リクエスト送信
 	client := &http.Client{}
 	resp, err := client.Do(req)
@@ -67,8 +71,17 @@ func VerifyToken(c *gin.Context) {
 	}
 	defer resp.Body.Close()
 
-	// レスポンスボディの読み取り（エラーメッセージのために）
-	respBody, _ := io.ReadAll(resp.Body)
+	// レスポンスボディの読み取り
+	respBody, err := io.ReadAll(resp.Body)
+	if err != nil {
+		logger.Logger.Error("レスポンスの読み取りに失敗しました",
+			append(logFields, zap.Error(err))...)
+		c.JSON(http.StatusInternalServerError, gin.H{
+			"error": "Failed to read response",
+		})
+		return
+	}
+
 	logFields = append(logFields, zap.String("response_body", string(respBody)))
 
 	// レスポンスのステータスコードチェック
@@ -77,11 +90,10 @@ func VerifyToken(c *gin.Context) {
 			append(logFields,
 				zap.Int("status_code", resp.StatusCode))...)
 
-		// DBPilotからのエラーメッセージを解析
 		var errorResponse struct {
 			Error string `json:"error"`
 		}
-		if err := json.Unmarshal(respBody, &errorResponse); err == nil {
+		if err := json.Unmarshal(respBody, &errorResponse); err == nil && errorResponse.Error != "" {
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"error": errorResponse.Error,
 			})
@@ -94,8 +106,8 @@ func VerifyToken(c *gin.Context) {
 	}
 
 	// レスポンスのデコード
-	var verificationResponse TokenVerificationResponse
-	if err := json.Unmarshal(respBody, &verificationResponse); err != nil {
+	var dbpilotResponse DBPilotResponse
+	if err := json.Unmarshal(respBody, &dbpilotResponse); err != nil {
 		logger.Logger.Error("レスポンスのデコードに失敗しました",
 			append(logFields, zap.Error(err))...)
 		c.JSON(http.StatusInternalServerError, gin.H{
@@ -104,7 +116,16 @@ func VerifyToken(c *gin.Context) {
 		return
 	}
 
-	if verificationResponse.Email == "" {
+	// データのチェック
+	if !dbpilotResponse.Success {
+		logger.Logger.Error("トークン検証が失敗しました", logFields...)
+		c.JSON(http.StatusUnauthorized, gin.H{
+			"error": dbpilotResponse.Error,
+		})
+		return
+	}
+
+	if dbpilotResponse.Data.Email == "" {
 		logger.Logger.Error("メールアドレスが取得できませんでした", logFields...)
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"error": "Email not found in response",
@@ -113,11 +134,18 @@ func VerifyToken(c *gin.Context) {
 	}
 
 	logger.Logger.Info("トークンの検証が成功しました",
-		append(logFields, zap.String("email", verificationResponse.Email))...)
+		append(logFields,
+			zap.String("email", dbpilotResponse.Data.Email),
+			zap.Uint("user_id", dbpilotResponse.Data.UserID))...)
 
+	// 成功レスポンスの返却
 	c.JSON(http.StatusOK, gin.H{
-		"message": "Token verified successfully",
-		"email":   verificationResponse.Email,
-		"user_id": verificationResponse.UserID,
+		"success": true,
+		"data": gin.H{
+			"email":     dbpilotResponse.Data.Email,
+			"user_id":   dbpilotResponse.Data.UserID,
+			"name":      dbpilotResponse.Data.Name,
+			"image_url": dbpilotResponse.Data.ImageURL,
+		},
 	})
 }

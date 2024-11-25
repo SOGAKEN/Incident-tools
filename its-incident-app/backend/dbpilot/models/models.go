@@ -244,10 +244,21 @@ type ProcessingStatus struct {
 
 type LoginToken struct {
 	gorm.Model
-	Email     string    `gorm:"type:varchar(255);index"` // 外部キー制約用
+	Email     string    `gorm:"type:varchar(255);index;not null"` // 外部キー制約用
 	Token     string    `gorm:"uniqueIndex;type:varchar(255);not null"`
 	ExpiresAt time.Time `gorm:"not null"`
-	Used      bool      `gorm:"default:false"`
+	IsExpired bool      `gorm:"default:false"`
+}
+
+// TokenAccess はトークンの使用履歴を記録するモデル
+type TokenAccess struct {
+	BaseModel
+	TokenID    uint      `gorm:"index;not null"`
+	Token      string    `gorm:"type:varchar(255);not null"`
+	Email      string    `gorm:"type:varchar(255);not null"`
+	IP         string    `gorm:"type:varchar(255);not null"`
+	UserAgent  string    `gorm:"type:text"`
+	AccessedAt time.Time `gorm:"type:timestamp with time zone;not null"`
 }
 
 type LoginTokenRequest struct {

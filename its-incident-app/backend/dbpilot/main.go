@@ -155,6 +155,7 @@ func performMigrations(db *gorm.DB) error {
 		&models.ErrorLog{},
 		&models.EmailData{},
 		&models.ProcessingStatus{},
+		&models.TokenAccess{},
 	)
 
 	if err != nil {
