@@ -2,7 +2,7 @@
     "apps": [
         {
             "name": "web",
-            "script": "./../.next/standalone/server.js",
+            "script": "/Users/sogaken/src/github.com/SOGAKEN/Incident-tools/its-incident-app/frontend/.next/standalone/server.js",
             "interpreter": "node",
             "watch": true,
             "exec_mode": "cluster",
