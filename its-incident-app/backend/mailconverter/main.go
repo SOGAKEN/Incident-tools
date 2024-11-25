@@ -29,7 +29,7 @@ func main() {
 	// middleware 設定
 	middlewareConfig := &middleware.Config{
 		EnableLogger: true,
-		EnableAuth:   false,
+		EnableAuth:   true,
 	}
 	middleware.SetupMiddleware(r, middlewareConfig)
 

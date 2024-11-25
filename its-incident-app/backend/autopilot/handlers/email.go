@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"context"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -136,6 +137,19 @@ func (h *EmailHandler) processAIAndSaveIncident(ctx context.Context, emailData *
 	if err != nil {
 		logger.Logger.Error("AI処理に失敗しました",
 			append(logFields, zap.Error(err))...)
+
+		// エラー用のAIResponseを生成
+		errorResponse := models.NewErrorResponse(messageID, err)
+
+		// エラー情報もインシデントとして保存
+		if saveErr := h.dbpilotService.SaveIncident(errorResponse, messageID); saveErr != nil {
+			logger.Logger.Error("エラー情報のインシデント保存に失敗しました",
+				append(logFields,
+					zap.Error(saveErr),
+					zap.Error(err))...)
+			return fmt.Errorf("failed to save error incident: %v (original error: %v)", saveErr, err)
+		}
+
 		return err
 	}
 

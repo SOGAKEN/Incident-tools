@@ -19,7 +19,6 @@ import (
 type Config struct {
 	EnableLogger bool
 	EnableAuth   bool
-	// 他のミドルウェア設定を追加
 }
 
 // SetupMiddleware ミドルウェアの設定
@@ -32,41 +31,90 @@ func SetupMiddleware(r *gin.Engine, cfg *Config) {
 	}
 
 	if cfg.EnableAuth {
-		r.Use(AuthMiddleware())
+		r.Use(PathBasedAuthMiddleware())
 	}
 }
 
-// AuthMiddleware Bearerトークン検証用ミドルウェア
-func AuthMiddleware() gin.HandlerFunc {
+// PathBasedAuthMiddleware パスベースの認証ミドルウェア
+func PathBasedAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		serviceToken := os.Getenv("SERVICE_TOKEN")
-		if serviceToken == "" {
-			logger.Logger.Warn("SERVICE_TOKEN is not set")
-			abortWithError(c, http.StatusUnauthorized, "unauthorized")
+		path := c.Request.URL.Path
+
+		// ヘルスチェックはスキップ
+		if path == "/health" {
+			c.Next()
 			return
 		}
 
-		authHeader := c.GetHeader("Authorization")
-		if !strings.HasPrefix(authHeader, "Bearer ") {
-			logUnauthorizedRequest(c)
-			abortWithError(c, http.StatusUnauthorized, "invalid authorization header format")
+		// 外部からのメール受信用エンドポイント
+		if path == "/receive" && c.Request.Method == "POST" {
+			externalAuthMiddleware(c)
 			return
 		}
 
-		token := strings.TrimPrefix(authHeader, "Bearer ")
-		if token != serviceToken {
-			logUnauthorizedRequest(c)
-			abortWithError(c, http.StatusUnauthorized, "invalid token")
-			return
-		}
-
-		c.Next()
+		// その他の内部APIエンドポイント
+		internalAuthMiddleware(c)
 	}
+}
+
+// externalAuthMiddleware 外部からのリクエスト用認証
+func externalAuthMiddleware(c *gin.Context) {
+	externalToken := os.Getenv("EXTERNAL_API_TOKEN")
+	if externalToken == "" {
+		logger.Logger.Warn("EXTERNAL_API_TOKEN is not set")
+		abortWithError(c, http.StatusUnauthorized, "unauthorized: external token not configured")
+		return
+	}
+
+	authHeader := c.GetHeader("Authorization")
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		logUnauthorizedRequest(c)
+		abortWithError(c, http.StatusUnauthorized, "invalid authorization header format")
+		return
+	}
+
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	if token != externalToken {
+		logUnauthorizedRequest(c)
+		abortWithError(c, http.StatusUnauthorized, "invalid external token")
+		return
+	}
+
+	c.Next()
+}
+
+// internalAuthMiddleware 内部API用認証
+func internalAuthMiddleware(c *gin.Context) {
+	serviceToken := os.Getenv("SERVICE_TOKEN")
+	if serviceToken == "" {
+		logger.Logger.Warn("SERVICE_TOKEN is not set")
+		abortWithError(c, http.StatusUnauthorized, "unauthorized: service token not configured")
+		return
+	}
+
+	authHeader := c.GetHeader("Authorization")
+	if !strings.HasPrefix(authHeader, "Bearer ") {
+		logUnauthorizedRequest(c)
+		abortWithError(c, http.StatusUnauthorized, "invalid authorization header format")
+		return
+	}
+
+	token := strings.TrimPrefix(authHeader, "Bearer ")
+	if token != serviceToken {
+		logUnauthorizedRequest(c)
+		abortWithError(c, http.StatusUnauthorized, "invalid internal token")
+		return
+	}
+
+	c.Next()
 }
 
 // abortWithError エラーレスポンスを返す補助関数
 func abortWithError(c *gin.Context, status int, message string) {
-	c.AbortWithStatusJSON(status, gin.H{"error": message})
+	c.AbortWithStatusJSON(status, gin.H{
+		"error": message,
+		"code":  status,
+	})
 }
 
 // logUnauthorizedRequest 未認証リクエストのログ出力
@@ -90,7 +138,7 @@ func logUnauthorizedRequest(c *gin.Context) {
 	)
 }
 
-// buildRequestInfo リクエスト情報の構築
+// RequestInfo リクエスト情報の構造体
 type RequestInfo struct {
 	Method  string              `json:"method"`
 	Path    string              `json:"path"`
@@ -98,6 +146,7 @@ type RequestInfo struct {
 	Body    string              `json:"body,omitempty"`
 }
 
+// buildRequestInfo リクエスト情報の構築
 func buildRequestInfo(c *gin.Context, bodyBytes []byte) RequestInfo {
 	headers := make(map[string][]string)
 	for name, values := range c.Request.Header {
@@ -120,7 +169,8 @@ func isProtectedHeader(header string) bool {
 	sensitiveHeaders := map[string]bool{
 		"Authorization": true,
 		"Cookie":        true,
-		// 他のセンシティブなヘッダーを追加
+		"Set-Cookie":    true,
+		"X-API-Key":     true,
 	}
 	return sensitiveHeaders[header]
 }
