@@ -17,7 +17,7 @@ all: build push deploy
 # Dockerイメージをビルド
 build:
 	@echo "Building $(SERVICE)..."
-	docker build -t $(IMAGE_PREFIX)/$(SERVICE):latest .
+	docker build --platform=linux/amd64 -t $(IMAGE_PREFIX)/$(SERVICE):latest .
 
 # Dockerイメージをプッシュ
 push:
