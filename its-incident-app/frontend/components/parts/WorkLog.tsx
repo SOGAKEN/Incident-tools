@@ -26,7 +26,7 @@ const WorkLog = ({ isWorkflowLogExpanded, onClick, data }: WorkLog) => {
         const workflowLogsArray: WorkflowLog[] = JSON.parse(data.APIData.WorkflowLogs)
         const result = workflowLogsArray.reduce((acc: ParsedAnswer[], item) => {
             const key = Object.keys(item)[0]
-            if (item[key] !== null && key !== undefined) {
+            if (item[key] !== null && key !== undefined && key !== '') {
                 acc.push({ [key]: item[key] })
             }
             return acc
