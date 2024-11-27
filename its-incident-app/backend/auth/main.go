@@ -32,13 +32,14 @@ func main() {
 	middlewareConfig := &middleware.Config{
 		EnableLogger: true,
 		EnableAuth:   cfg.Environment == "production", // 本番環境の場合のみ認証を有効化
+		ServerConfig: cfg,
 	}
 
 	// ミドルウェアをエンジンに設定
 	middleware.SetupMiddleware(r, middlewareConfig)
 
 	// 認証をスキップするパスを設定
-	r.Use(middleware.SkipAuthMiddleware("/login", "/health", "/verify-token", "/accounts"))
+	r.Use(middleware.SkipAuthMiddleware(cfg, "/login", "/health", "/verify-token", "/accounts"))
 
 	// ハンドラーの設定
 	r.POST("/register", handlers.RegisterUser)

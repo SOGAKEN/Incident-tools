@@ -131,11 +131,12 @@ func CreateIncident(db *gorm.DB) gin.HandlerFunc {
 
 		// API応答データの作成
 		apiData := models.APIResponseData{
-			IncidentID:    incident.ID,
-			TaskID:        apiRequest.TaskID,
-			WorkflowRunID: apiRequest.WorkflowRunID,
-			WorkflowID:    apiRequest.Data.WorkflowID,
-			Status:        apiRequest.Data.Status,
+			IncidentID:     incident.ID,
+			TaskID:         apiRequest.TaskID,
+			WorkflowRunID:  apiRequest.WorkflowRunID,
+			WorkflowID:     apiRequest.Data.WorkflowID,
+			Status:         apiRequest.Data.Status,
+			IncidentNumber: apiRequest.Data.Outputs.IncidentID,
 
 			Body:         apiRequest.Data.Outputs.Body,
 			User:         apiRequest.Data.Outputs.User,

@@ -45,6 +45,9 @@ func GetAPIResponseData(db *gorm.DB) gin.HandlerFunc {
 		if query.Status != nil {
 			dbQuery = dbQuery.Where("status = ?", *query.Status)
 		}
+		if query.IncidentNumber != nil {
+			dbQuery = dbQuery.Where("incident_number = ?", *query.IncidentNumber)
+		}
 
 		// テキストフィールドの検索（ILIKE使用）
 		textFields := map[string]*string{

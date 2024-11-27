@@ -87,19 +87,20 @@ type APIResponseData struct {
 	WorkflowID    string `gorm:"size:100"`
 	Status        string `gorm:"size:50"`
 
-	Body         string `gorm:"type:text"`
-	User         string `gorm:"size:100"`
-	WorkflowLogs string `gorm:"type:jsonb"`
-	Host         string `gorm:"size:100"`
-	Priority     string `gorm:"size:50"`
-	Subject      string `gorm:"size:200"`
-	From         string `gorm:"size:100"`
-	Place        string `gorm:"size:200"`
-	IncidentText string `gorm:"type:text"`
-	Time         string `gorm:"size:50"`
-	Judgment     string `gorm:"size:100"`
-	Sender       string `gorm:"size:100"`
-	Final        string `gorm:"type:text"`
+	Body           string `gorm:"type:text"`
+	User           string `gorm:"size:100"`
+	WorkflowLogs   string `gorm:"type:jsonb"`
+	Host           string `gorm:"size:100"`
+	Priority       string `gorm:"size:50"`
+	Subject        string `gorm:"size:200"`
+	From           string `gorm:"size:100"`
+	Place          string `gorm:"size:200"`
+	IncidentText   string `gorm:"type:text"`
+	Time           string `gorm:"size:50"`
+	Judgment       string `gorm:"size:100"`
+	Sender         string `gorm:"size:100"`
+	Final          string `gorm:"type:text"`
+	IncidentNumber int
 
 	ElapsedTime float64
 	TotalTokens int
@@ -186,18 +187,19 @@ type APIResponseDataQuery struct {
 	Status        *string `json:"status,omitempty"`
 
 	// テキストフィールド
-	Body         *string `json:"body,omitempty"`
-	User         *string `json:"user,omitempty"`
-	Host         *string `json:"host,omitempty"`
-	Priority     *string `json:"priority,omitempty"`
-	Subject      *string `json:"subject,omitempty"`
-	From         *string `json:"from,omitempty"`
-	Place        *string `json:"place,omitempty"`
-	IncidentText *string `json:"incident_text,omitempty"`
-	Time         *string `json:"time,omitempty"`
-	Judgment     *string `json:"judgment,omitempty"`
-	Sender       *string `json:"sender,omitempty"`
-	Final        *string `json:"final,omitempty"`
+	Body           *string `json:"body,omitempty"`
+	User           *string `json:"user,omitempty"`
+	Host           *string `json:"host,omitempty"`
+	Priority       *string `json:"priority,omitempty"`
+	Subject        *string `json:"subject,omitempty"`
+	From           *string `json:"from,omitempty"`
+	Place          *string `json:"place,omitempty"`
+	IncidentText   *string `json:"incident_text,omitempty"`
+	Time           *string `json:"time,omitempty"`
+	Judgment       *string `json:"judgment,omitempty"`
+	Sender         *string `json:"sender,omitempty"`
+	Final          *string `json:"final,omitempty"`
+	IncidentNumber *int    `json:"incident_number"`
 
 	// 数値範囲
 	ElapsedTimeMin *float64 `json:"elapsed_time_min,omitempty"`

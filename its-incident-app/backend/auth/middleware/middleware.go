@@ -1,3 +1,5 @@
+// middleware/middleware.go
+
 package middleware
 
 import (
@@ -10,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"auth/config"
 	"auth/logger"
 
 	"github.com/gin-gonic/gin"
@@ -19,12 +22,11 @@ import (
 type Config struct {
 	EnableLogger bool
 	EnableAuth   bool
-	// 他のミドルウェア設定を追加
+	ServerConfig *config.ServerConfig
 }
 
 // SetupMiddleware ミドルウェアの設定
 func SetupMiddleware(r *gin.Engine, cfg *Config) {
-	// 基本的なミドルウェア
 	r.Use(gin.Recovery())
 
 	if cfg.EnableLogger {
@@ -32,36 +34,102 @@ func SetupMiddleware(r *gin.Engine, cfg *Config) {
 	}
 
 	if cfg.EnableAuth {
-		r.Use(AuthMiddleware())
+		r.Use(AuthMiddleware(cfg.ServerConfig))
 	}
 }
 
-// AuthMiddleware Bearerトークン検証用ミドルウェア
-func AuthMiddleware() gin.HandlerFunc {
-	return func(c *gin.Context) {
-		serviceToken := os.Getenv("SERVICE_TOKEN")
-		if serviceToken == "" {
-			logger.Logger.Warn("SERVICE_TOKEN is not set")
-			abortWithError(c, http.StatusUnauthorized, "unauthorized")
-			return
-		}
-
-		authHeader := c.GetHeader("Authorization")
-		if !strings.HasPrefix(authHeader, "Bearer ") {
-			logUnauthorizedRequest(c)
-			abortWithError(c, http.StatusUnauthorized, "invalid authorization header format")
-			return
-		}
-
+// authenticateRequest リクエストの認証を行う共通関数
+func authenticateRequest(c *gin.Context, cfg *config.ServerConfig) bool {
+	// SERVICE_TOKENによる認証チェック
+	authHeader := c.GetHeader("Authorization")
+	if strings.HasPrefix(authHeader, "Bearer ") {
 		token := strings.TrimPrefix(authHeader, "Bearer ")
-		if token != serviceToken {
-			logUnauthorizedRequest(c)
-			abortWithError(c, http.StatusUnauthorized, "invalid token")
+		serviceToken := os.Getenv("SERVICE_TOKEN")
+		if serviceToken != "" && token == serviceToken {
+			return true
+		}
+	}
+
+	// セッションクッキーによる認証チェック
+	sessionID, err := c.Cookie("session_id")
+	if err == nil {
+		if err := verifySessionWithDBPilot(c, cfg.DBPilotURL, sessionID); err == nil {
+			c.Set("session", sessionID)
+			return true
+		} else {
+			logger.Logger.Warn("セッション検証に失敗",
+				zap.Error(err),
+				zap.String("session_id", sessionID),
+			)
+		}
+	}
+
+	return false
+}
+
+// AuthMiddleware 認証ミドルウェア
+func AuthMiddleware(cfg *config.ServerConfig) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if authenticateRequest(c, cfg) {
+			c.Next()
 			return
 		}
 
-		c.Next()
+		logUnauthorizedRequest(c)
+		abortWithError(c, http.StatusUnauthorized, "unauthorized")
 	}
+}
+
+// SkipAuthMiddleware 認証スキップミドルウェア
+func SkipAuthMiddleware(cfg *config.ServerConfig, skipPaths ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		// 現在のパスがスキップ対象かチェック
+		path := c.Request.URL.Path
+		for _, skipPath := range skipPaths {
+			if path == skipPath {
+				c.Next()
+				return
+			}
+		}
+
+		if authenticateRequest(c, cfg) {
+			c.Next()
+			return
+		}
+
+		logUnauthorizedRequest(c)
+		abortWithError(c, http.StatusUnauthorized, "unauthorized")
+	}
+}
+
+// verifySessionWithDBPilot セッション検証
+func verifySessionWithDBPilot(c *gin.Context, dbpilotURL, sessionID string) error {
+	if dbpilotURL == "" {
+		return fmt.Errorf("DB_PILOT_SERVICE_URL is not configured")
+	}
+
+	verifyURL := fmt.Sprintf("%s/api/v1/sessions/verify", dbpilotURL)
+	req, err := http.NewRequest("GET", verifyURL, nil)
+	if err != nil {
+		return fmt.Errorf("failed to create verification request: %w", err)
+	}
+
+	req.Header.Set("Authorization", fmt.Sprintf("Bearer %s", sessionID))
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("failed to send verification request: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("session verification failed with status %d: %s",
+			resp.StatusCode, string(body))
+	}
+
+	return nil
 }
 
 // abortWithError エラーレスポンスを返す補助関数
@@ -90,7 +158,7 @@ func logUnauthorizedRequest(c *gin.Context) {
 	)
 }
 
-// buildRequestInfo リクエスト情報の構築
+// RequestInfo リクエスト情報の構造体
 type RequestInfo struct {
 	Method  string              `json:"method"`
 	Path    string              `json:"path"`
@@ -98,10 +166,10 @@ type RequestInfo struct {
 	Body    string              `json:"body,omitempty"`
 }
 
+// buildRequestInfo リクエスト情報の構築
 func buildRequestInfo(c *gin.Context, bodyBytes []byte) RequestInfo {
 	headers := make(map[string][]string)
 	for name, values := range c.Request.Header {
-		// センシティブなヘッダーの除外
 		if !isProtectedHeader(name) {
 			headers[name] = values
 		}
@@ -120,9 +188,9 @@ func isProtectedHeader(header string) bool {
 	sensitiveHeaders := map[string]bool{
 		"Authorization": true,
 		"Cookie":        true,
-		// 他のセンシティブなヘッダーを追加
+		"Set-Cookie":    true,
 	}
-	return sensitiveHeaders[header]
+	return sensitiveHeaders[strings.ToLower(header)]
 }
 
 // GinLogger ロギングミドルウェア
@@ -148,7 +216,6 @@ func GinLogger() gin.HandlerFunc {
 			fields = append(fields, zap.String("errors", errors))
 		}
 
-		// トレース情報の追加
 		if traceID := getTraceID(c); traceID != "" {
 			fields = append(fields, zap.String("logging.googleapis.com/trace", traceID))
 		}
@@ -182,42 +249,5 @@ func logRequestWithLevel(c *gin.Context, fields ...zap.Field) {
 		logger.Logger.Warn("クライアントエラー", fields...)
 	default:
 		logger.Logger.Info("リクエスト完了", fields...)
-	}
-}
-
-// SkipAuthMiddleware 特定のパスの認証をスキップするミドルウェアを生成
-func SkipAuthMiddleware(skipPaths ...string) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		// 現在のパスがスキップ対象かチェック
-		path := c.Request.URL.Path
-		for _, skipPath := range skipPaths {
-			if path == skipPath {
-				c.Next()
-				return
-			}
-		}
-
-		// AuthMiddlewareと同じ処理を実行
-		authHeader := c.GetHeader("Authorization")
-		if authHeader == "" {
-			logger.Logger.Warn("認証ヘッダーが見つかりません")
-			abortWithError(c, http.StatusUnauthorized, "unauthorized")
-			return
-		}
-
-		if !strings.HasPrefix(authHeader, "Bearer ") {
-			logUnauthorizedRequest(c)
-			abortWithError(c, http.StatusUnauthorized, "invalid authorization header format")
-			return
-		}
-
-		token := strings.TrimPrefix(authHeader, "Bearer ")
-		if token != os.Getenv("SERVICE_TOKEN") {
-			logUnauthorizedRequest(c)
-			abortWithError(c, http.StatusUnauthorized, "invalid token")
-			return
-		}
-
-		c.Next()
 	}
 }

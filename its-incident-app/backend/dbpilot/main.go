@@ -90,6 +90,7 @@ func setupRouter(db *gorm.DB, cfg *config.ServerConfig) *gin.Engine {
 		DB:           db,
 	}
 	middleware.SetupMiddleware(r, middlewareConfig)
+	authHandler := handlers.NewAuthHandler()
 
 	logger.Logger.Info("ルーターの設定を開始します")
 
@@ -134,6 +135,8 @@ func setupRouter(db *gorm.DB, cfg *config.ServerConfig) *gin.Engine {
 
 		// Workflows用のエンドポイント
 		protected.POST("/api-responses/search", handlers.GetAPIResponseData(db))
+		protected.GET("/sessions/verify", authHandler.HandleAuthVerification)
+
 	}
 
 	logger.Logger.Info("ルーターの設定が完了しました")
