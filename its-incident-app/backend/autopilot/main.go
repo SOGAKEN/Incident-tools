@@ -40,7 +40,7 @@ func main() {
 	middleware.SetupMiddleware(r, middlewareConfig)
 
 	// ハンドラーの設定
-	emailHandler := handlers.NewEmailHandler(dbpilotService, aiService)
+	emailHandler := handlers.NewEmailHandler(dbpilotService, aiService, cfg.ProjectID)
 	r.GET("/health", handleHealthCheck)
 	r.POST("/receive", emailHandler.HandleEmailReceive)
 	// 処理状態確認エンドポイントの追加
