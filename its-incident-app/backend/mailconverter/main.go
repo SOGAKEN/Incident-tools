@@ -33,8 +33,15 @@ func main() {
 	}
 	middleware.SetupMiddleware(r, middlewareConfig)
 
-	r.POST("/receive", handlers.HandleEmailReceive)
+	// ハンドラーの初期化と登録
+	emailHandler := handlers.NewEmailHandler()
+	r.POST("/receive", emailHandler.HandleEmailReceive)
+	r.GET("/status/:messageID", handlers.HandleCheckStatus)
 
+	// ヘルスチェックエンドポイント
+	r.GET("/health", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"status": "ok"})
+	})
 	// サーバーの設定と起動
 	srv := config.SetupServer(r)
 

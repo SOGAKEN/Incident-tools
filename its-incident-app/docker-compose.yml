@@ -13,12 +13,16 @@ services:
       - app-network
   datastore:
     image: gcr.io/google.com/cloudsdktool/cloud-sdk:latest
-    command: gcloud beta emulators datastore start --host-port=0.0.0.0:8090 --project=local-project --consistency=1.0
+    command: >
+      sh -c "
+        gcloud config set project your-project-id &&
+        gcloud beta emulators datastore start --host-port=0.0.0.0:8090
+      "
+    ports:
+      - "8090:8090"
     environment:
       - DATASTORE_PROJECT_ID=local-project
       - DATASTORE_LISTEN_ADDRESS=0.0.0.0:8090
-    ports:
-      - "8090:8090"
 networks:
   app-network:
 

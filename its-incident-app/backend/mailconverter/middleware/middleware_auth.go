@@ -66,18 +66,37 @@ func externalAuthMiddleware(c *gin.Context) {
 		return
 	}
 
+	// リクエストボディを保存
+	var bodyBytes []byte
+	if c.Request.Body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(c.Request.Body)
+		if err != nil {
+			logger.Logger.Error("Failed to read request body", zap.Error(err))
+			abortWithError(c, http.StatusBadRequest, "failed to read request body")
+			return
+		}
+		// ボディをリセット
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	}
+
 	authHeader := c.GetHeader("Authorization")
 	if !strings.HasPrefix(authHeader, "Bearer ") {
-		logUnauthorizedRequest(c)
+		logUnauthorizedRequest(c, bodyBytes)
 		abortWithError(c, http.StatusUnauthorized, "invalid authorization header format")
 		return
 	}
 
 	token := strings.TrimPrefix(authHeader, "Bearer ")
 	if token != externalToken {
-		logUnauthorizedRequest(c)
+		logUnauthorizedRequest(c, bodyBytes)
 		abortWithError(c, http.StatusUnauthorized, "invalid external token")
 		return
+	}
+
+	// 認証成功の場合もボディをリセット
+	if bodyBytes != nil {
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 	}
 
 	c.Next()
@@ -92,18 +111,37 @@ func internalAuthMiddleware(c *gin.Context) {
 		return
 	}
 
+	// リクエストボディを保存
+	var bodyBytes []byte
+	if c.Request.Body != nil {
+		var err error
+		bodyBytes, err = io.ReadAll(c.Request.Body)
+		if err != nil {
+			logger.Logger.Error("Failed to read request body", zap.Error(err))
+			abortWithError(c, http.StatusBadRequest, "failed to read request body")
+			return
+		}
+		// ボディをリセット
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
+	}
+
 	authHeader := c.GetHeader("Authorization")
 	if !strings.HasPrefix(authHeader, "Bearer ") {
-		logUnauthorizedRequest(c)
+		logUnauthorizedRequest(c, bodyBytes)
 		abortWithError(c, http.StatusUnauthorized, "invalid authorization header format")
 		return
 	}
 
 	token := strings.TrimPrefix(authHeader, "Bearer ")
 	if token != serviceToken {
-		logUnauthorizedRequest(c)
+		logUnauthorizedRequest(c, bodyBytes)
 		abortWithError(c, http.StatusUnauthorized, "invalid internal token")
 		return
+	}
+
+	// 認証成功の場合もボディをリセット
+	if bodyBytes != nil {
+		c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
 	}
 
 	c.Next()
@@ -118,13 +156,7 @@ func abortWithError(c *gin.Context, status int, message string) {
 }
 
 // logUnauthorizedRequest 未認証リクエストのログ出力
-func logUnauthorizedRequest(c *gin.Context) {
-	var bodyBytes []byte
-	if c.Request.Body != nil {
-		bodyBytes, _ = io.ReadAll(c.Request.Body)
-		c.Request.Body = io.NopCloser(bytes.NewBuffer(bodyBytes))
-	}
-
+func logUnauthorizedRequest(c *gin.Context, bodyBytes []byte) {
 	requestInfo := buildRequestInfo(c, bodyBytes)
 	jsonData, err := json.MarshalIndent(requestInfo, "", "  ")
 	if err != nil {

@@ -2,22 +2,32 @@ package handlers
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"os"
+	"runtime/debug"
 	"time"
+
+	"mailconvertor/logger"
+	"mailconvertor/models"
+	"mailconvertor/store"
 
 	"github.com/gin-gonic/gin"
 	"github.com/jhillyerd/enmime"
 	"go.uber.org/zap"
-	"mailconvertor/logger"
-	"mailconvertor/models"
 )
 
+type EmailHandler struct {
+}
+
+func NewEmailHandler() *EmailHandler {
+	return &EmailHandler{}
+}
+
 func ParseEmail(rawEmailData []byte) (*models.EmailData, error) {
-	// ロガーの取得
 	log := logger.Logger
 
 	reader := bytes.NewReader(rawEmailData)
@@ -83,9 +93,9 @@ func createResponse(status string, code int, message string, traceID string, err
 	return response
 }
 
-func HandleEmailReceive(c *gin.Context) {
-	// ロガーの取得
+func (h *EmailHandler) HandleEmailReceive(c *gin.Context) {
 	log := logger.Logger
+	ctx := c.Request.Context()
 
 	messageID := c.GetHeader("X-Message-ID")
 	if messageID == "" {
@@ -93,37 +103,163 @@ func HandleEmailReceive(c *gin.Context) {
 		log.Info("メッセージIDを生成しました", zap.String("messageId", messageID))
 	}
 
+	log.Info("メール受信処理を開始します", zap.String("messageId", messageID))
+
+	// EmailStoreの初期化
+	emailStore, err := store.NewEmailStore(ctx, os.Getenv("GOOGLE_CLOUD_PROJECT"))
+	if err != nil {
+		log.Error("Failed to initialize email store", zap.Error(err))
+		response := createResponse("error", http.StatusInternalServerError, "Internal server error", messageID, err)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+	defer emailStore.Close()
+
+	// 初期状態の作成
+	if err := emailStore.CreateProcessing(ctx, messageID); err != nil {
+		log.Error("Failed to create initial processing", zap.Error(err))
+		response := createResponse("error", http.StatusInternalServerError, "Internal server error", messageID, err)
+		c.JSON(http.StatusInternalServerError, response)
+		return
+	}
+
+	// リクエスト情報のログ出力
+	log.Info("リクエスト情報",
+		zap.String("messageId", messageID),
+		zap.String("method", c.Request.Method),
+		zap.String("content-type", c.GetHeader("Content-Type")),
+		zap.Int64("content-length", c.Request.ContentLength),
+	)
+
+	// パニックハンドラー
+	defer func() {
+		if r := recover(); r != nil {
+			log.Error("パニックが発生しました",
+				zap.String("messageId", messageID),
+				zap.Any("error", r),
+				zap.String("stack", string(debug.Stack())))
+
+			if err := emailStore.SetError(ctx, messageID, "PANIC", fmt.Sprintf("%v", r)); err != nil {
+				log.Error("パニック状態の保存に失敗しました", zap.Error(err))
+			}
+
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error": "Internal server error",
+			})
+		}
+	}()
+
+	// リクエストボディの状態確認
+	if c.Request.Body == nil {
+		err := fmt.Errorf("request body is nil")
+		if err := emailStore.SetError(ctx, messageID, "EMPTY_BODY", err.Error()); err != nil {
+			log.Error("エラー状態の保存に失敗しました", zap.Error(err))
+		}
+		response := createResponse("error", http.StatusBadRequest, "Request body is nil", messageID, err)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
 	rawEmailData, err := io.ReadAll(c.Request.Body)
 	if err != nil {
-		log.Error("リクエストボディの読み取りに失敗しました", zap.Error(err))
+		log.Error("リクエストボディの読み取りに失敗しました",
+			zap.String("messageId", messageID),
+			zap.Error(err))
+		if err := emailStore.SetError(ctx, messageID, "READ_ERROR", err.Error()); err != nil {
+			log.Error("エラー状態の保存に失敗しました", zap.Error(err))
+		}
 		response := createResponse("error", http.StatusBadRequest, "Failed to read request body", messageID, err)
 		c.JSON(http.StatusBadRequest, response)
 		return
 	}
 
-	log.Debug("メールデータを受信しました",
+	if len(rawEmailData) == 0 {
+		err := fmt.Errorf("request data is empty")
+		if err := emailStore.SetError(ctx, messageID, "EMPTY_DATA", err.Error()); err != nil {
+			log.Error("エラー状態の保存に失敗しました", zap.Error(err))
+		}
+		response := createResponse("error", http.StatusBadRequest, "Request data is empty", messageID, err)
+		c.JSON(http.StatusBadRequest, response)
+		return
+	}
+
+	log.Info("メールデータを受信しました",
 		zap.String("messageId", messageID),
-		zap.Int("size", len(rawEmailData)),
-	)
+		zap.Int("size", len(rawEmailData)))
+
+	// メール処理状態を実行中に更新
+	processing, err := emailStore.GetProcessing(ctx, messageID)
+	if err != nil {
+		log.Error("処理状態の取得に失敗しました", zap.Error(err))
+	} else {
+		processing.Status = models.StatusRunning
+		if err := emailStore.UpdateProcessing(ctx, processing); err != nil {
+			log.Error("処理状態の更新に失敗しました", zap.Error(err))
+		}
+	}
+
+	// サービス状態も実行中に更新
+	serviceState, err := emailStore.GetServiceState(ctx, messageID)
+	if err != nil {
+		log.Error("サービス状態の取得に失敗しました", zap.Error(err))
+	} else {
+		serviceState.Status = models.StatusRunning
+		if err := emailStore.UpdateServiceState(ctx, serviceState); err != nil {
+			log.Error("サービス状態の更新に失敗しました", zap.Error(err))
+		}
+	}
 
 	emailData, err := ParseEmail(rawEmailData)
 	if err != nil {
-		log.Error("メールのパースに失敗しました", zap.Error(err))
+		log.Error("メールのパースに失敗しました",
+			zap.String("messageId", messageID),
+			zap.Error(err))
+		if err := emailStore.SetError(ctx, messageID, "PARSE_ERROR", err.Error()); err != nil {
+			log.Error("エラー状態の保存に失敗しました", zap.Error(err))
+		}
 		response := createResponse("error", http.StatusInternalServerError, "Failed to parse email", messageID, err)
 		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 
-	logEmailData(emailData)
+	log.Info("メールのパースが完了しました",
+		zap.String("messageId", messageID))
 
-	if err := sendToExternalAPI(emailData, messageID); err != nil {
-		log.Error("外部APIへの送信に失敗しました", zap.Error(err))
+	// パース済みメールデータを状態に保存
+	serviceState.EmailData = emailData
+	if err := emailStore.UpdateServiceState(ctx, serviceState); err != nil {
+		log.Error("メールデータの保存に失敗しました", zap.Error(err))
+	}
+
+	// 外部APIへの送信
+	log.Info("AutoPilotへの送信を開始します",
+		zap.String("messageId", messageID))
+
+	if err := sendToExternalAPI(ctx, emailData, messageID); err != nil {
+		log.Error("AutoPilotへの送信に失敗しました",
+			zap.String("messageId", messageID),
+			zap.Error(err))
+		if err := emailStore.SetError(ctx, messageID, "API_ERROR", err.Error()); err != nil {
+			log.Error("エラー状態の保存に失敗しました", zap.Error(err))
+		}
 		response := createResponse("error", http.StatusInternalServerError, "Failed to send to external API", messageID, err)
 		c.JSON(http.StatusInternalServerError, response)
 		return
 	}
 
-	log.Info("メール処理が正常に完了しました", zap.String("messageId", messageID))
+	// 処理完了状態の保存
+	processing.Status = models.StatusComplete
+	if err := emailStore.UpdateProcessing(ctx, processing); err != nil {
+		log.Error("完了状態の保存に失敗しました", zap.Error(err))
+	}
+
+	serviceState.Status = models.StatusComplete
+	if err := emailStore.UpdateServiceState(ctx, serviceState); err != nil {
+		log.Error("サービス完了状態の保存に失敗しました", zap.Error(err))
+	}
+
+	log.Info("メール処理が正常に完了しました",
+		zap.String("messageId", messageID))
 	response := createResponse("success", http.StatusOK, "Email processed successfully", messageID, nil)
 	c.JSON(http.StatusOK, response)
 }
@@ -143,7 +279,7 @@ func logEmailData(emailData *models.EmailData) {
 	)
 }
 
-func sendToExternalAPI(emailData *models.EmailData, messageID string) error {
+func sendToExternalAPI(ctx context.Context, emailData *models.EmailData, messageID string) error {
 	log := logger.Logger
 
 	payloadBytes, err := json.MarshalIndent(emailData, "", "  ")
@@ -152,7 +288,7 @@ func sendToExternalAPI(emailData *models.EmailData, messageID string) error {
 		return fmt.Errorf("failed to marshal payload: %v", err)
 	}
 
-	log.Info("外部APIにデータを送信します",
+	log.Info("AutoPilotにデータを送信します",
 		zap.String("messageId", messageID),
 		zap.String("originalMsgId", emailData.OriginalMessageID),
 		zap.String("from", emailData.From),
@@ -176,32 +312,30 @@ func sendToExternalAPI(emailData *models.EmailData, messageID string) error {
 
 	req.Header.Set("Content-Type", "application/json")
 	req.Header.Set("Authorization", "Bearer "+bearerToken)
-	if messageID != "" {
-		req.Header.Set("X-Message-ID", messageID)
-	}
+	req.Header.Set("X-Message-ID", messageID)
 
 	client := &http.Client{}
-	resp, err := client.Do(req)
+	resp, err := client.Do(req.WithContext(ctx))
 	if err != nil {
 		log.Error("HTTPリクエストの実行に失敗しました", zap.Error(err))
 		return fmt.Errorf("failed to make HTTP request: %v", err)
 	}
 	defer resp.Body.Close()
 
-	log.Info("外部APIからレスポンスを受信しました",
+	log.Info("AutoPilotからレスポンスを受信しました",
 		zap.String("messageId", messageID),
 		zap.Int("statusCode", resp.StatusCode),
 		zap.String("status", resp.Status),
 	)
 
-	if resp.StatusCode >= 400 { // 400以上をエラーとする
-		logger.Logger.Error("外部APIがエラーを返しました",
+	if resp.StatusCode >= 400 {
+		log.Error("AutoPilotがエラーを返しました",
 			zap.String("messageId", messageID),
 			zap.Int("statusCode", resp.StatusCode))
 		return fmt.Errorf("external API returned error status: %d", resp.StatusCode)
 	}
 
-	logger.Logger.Info("外部APIにデータを送信しました",
+	log.Info("AutoPilotにデータを送信しました",
 		zap.String("messageId", messageID),
 		zap.Int("statusCode", resp.StatusCode))
 	return nil
