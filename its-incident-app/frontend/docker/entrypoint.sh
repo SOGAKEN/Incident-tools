@@ -9,4 +9,5 @@ export NEXT_PUBLIC_AUTH_SERVICE_URL=http://localhost:8082
 # PM2でアプリケーションを起動
 #
 #npm run pm2
-HOST=0.0.0.0 pm2 start ./pm2.json --no-daemon
+# HOST=0.0.0.0 pm2 start ./pm2.json --no-daemon
+node ./server.js
