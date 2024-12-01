@@ -19,20 +19,28 @@ const statusItems = [
 
 interface SearchComponentProps {
     initialSelectedStatuses?: string[]
+    initialSelectAssignees?: string[]
+    uniqueAssignees?: string[]
     initialDateRange?: DateRange
-    onSearchAction: (selectedStatuses: string[], dateRange: DateRange | undefined) => Promise<void>
+    onSearchAction: (selectedStatuses: string[], dateRange: DateRange | undefined, selectUniqueAssignees: string[]) => Promise<void>
 }
 
-export function SearchComponent({ initialSelectedStatuses = [], initialDateRange, onSearchAction }: SearchComponentProps) {
+export function SearchComponent({ initialSelectedStatuses = [], initialSelectAssignees = [], uniqueAssignees = [], initialDateRange, onSearchAction }: SearchComponentProps) {
     const [selectedStatuses, setSelectedStatuses] = useState<string[]>(initialSelectedStatuses)
+    const [selectUniqueAssignees, setUniqueAssignees] = useState<string[]>(initialSelectAssignees)
     const [dateRange, setDateRange] = useState<DateRange | undefined>(initialDateRange)
+
+    const assigneeList = uniqueAssignees
 
     const handleStatusChange = (status: string) => {
         setSelectedStatuses((prev) => (prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]))
     }
 
+    const handleAssigneeChange = (status: string) => {
+        setUniqueAssignees((prev) => (prev.includes(status) ? prev.filter((s) => s !== status) : [...prev, status]))
+    }
     const handleSearch = () => {
-        onSearchAction(selectedStatuses, dateRange)
+        onSearchAction(selectedStatuses, dateRange, selectUniqueAssignees)
     }
 
     return (
@@ -53,6 +61,28 @@ export function SearchComponent({ initialSelectedStatuses = [], initialDateRange
                                 <label htmlFor={`status-${index}`} className="flex items-center ml-2 cursor-pointer">
                                     <item.icon className="w-4 h-4 mr-2" />
                                     {item.label}
+                                </label>
+                            </div>
+                        </DropdownMenuItem>
+                    ))}
+                </DropdownMenuContent>
+            </DropdownMenu>
+
+            <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                    <Button variant="outline" className="border-dashed">
+                        <Plus className="w-4 h-4 mr-2" />
+                        担当者
+                        {selectUniqueAssignees.length > 0 && `(${selectUniqueAssignees.length})`}
+                    </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56" align="start">
+                    {assigneeList.map((item, index) => (
+                        <DropdownMenuItem key={index} className="flex items-center justify-between" onSelect={(e) => e.preventDefault()}>
+                            <div className="flex items-center">
+                                <Checkbox id={`assignee-${index}`} checked={selectUniqueAssignees.includes(item)} onCheckedChange={() => handleAssigneeChange(item)} />
+                                <label htmlFor={`assignee-${index}`} className="flex items-center ml-2 cursor-pointer">
+                                    {item}
                                 </label>
                             </div>
                         </DropdownMenuItem>

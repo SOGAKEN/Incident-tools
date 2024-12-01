@@ -74,7 +74,7 @@ type IncidentRelation struct {
 type Response struct {
 	BaseModel
 	IncidentID uint      `gorm:"not null"`
-	Datetime   time.Time `gorm:"not null"`
+	Datetime   time.Time `gorm:"type:timestamp with time zone;not null"`
 	Responder  string    `gorm:"size:100;not null"`
 	Content    string    `gorm:"type:text;not null"`
 }

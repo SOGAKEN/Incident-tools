@@ -37,6 +37,7 @@ const PageNation = ({ props, handlers, displayLimit }: OnClick) => {
                         <SelectItem value="30">30</SelectItem>
                         <SelectItem value="40">40</SelectItem>
                         <SelectItem value="50">50</SelectItem>
+                        <SelectItem value="100">100</SelectItem>
                     </SelectContent>
                 </Select>
             </div>

@@ -7,7 +7,7 @@ import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { AlertCircle, CheckCircle, Clock, Calendar as CalendarIcon, Wrench } from 'lucide-react'
 import { format, fromUnixTime } from 'date-fns'
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import CardCounter from '../parts/CardCounter'
 
 import Loading from './Loading'
@@ -22,26 +22,35 @@ interface TopTableProps {
 
 const TopTable = ({ onIncidentClick }: TopTableProps) => {
     const [checkSatatus, setcheckStatas] = useState<string[]>(['未着手', '調査中'])
+    const [checkAssignees, setcheckAssignees] = useState<string[]>()
     const [fromStatus, setFromStatus] = useState<Date | undefined>(undefined)
     const [toStatus, setToStatus] = useState<Date | undefined>(undefined)
     const [queryParam, setQueryParam] = useState<string>('未着手%2C調査中')
+    const [queryAssignee, setAssignee] = useState<string>('')
     const [dateParam, setDateParam] = useState<string>('')
 
     const [page, setPage] = useState(1)
     const [limit, setLimit] = useState(10)
-    const { data, isLoading } = useFetch<IncidentsApiResponse>(`/api/getIncidentAll?page=${page}&limit=${limit}&status=${queryParam}${dateParam}`, {
+    const { data, isLoading } = useFetch<IncidentsApiResponse>(`/api/getIncidentAll?page=${page}&limit=${limit}&status=${queryParam}${dateParam}&assignee=${queryAssignee}`, {
         useSWR: true,
         swrOptions: {
             refreshInterval: 5000
         }
     })
+    useEffect(() => {
+        setcheckAssignees(data?.unique_assignees)
+    }, [data?.unique_assignees])
 
-    const handleSearch = async (selectedStatuses: string[], dateRange: DateRange | undefined): Promise<void> => {
+    const handleSearch = async (selectedStatuses: string[], dateRange: DateRange | undefined, selectUniqueAssignees: string[]): Promise<void> => {
         // ステータスの処理
         const query = selectedStatuses.length > 0 ? selectedStatuses.join('%2C') : ''
         setQueryParam(query)
         setcheckStatas(selectedStatuses)
         setPage(1)
+
+        const assignee = selectUniqueAssignees.length > 0 ? selectUniqueAssignees.join('%2C') : ''
+        setAssignee(assignee)
+        setcheckAssignees(selectUniqueAssignees)
 
         // 日付範囲の処理
         if (dateRange?.from && dateRange?.to) {
@@ -92,19 +101,16 @@ const TopTable = ({ onIncidentClick }: TopTableProps) => {
             {sortDate.map((status, index) => {
                 return status.status !== '解決済み' ? <CardCounter key={index} title={status.status} countSum={sortDate[index].count} /> : ''
             })}
-            {/* {data.status_counts.map((status, index) => {
-                return status.status === '未着手' ? (
-                    <CardCounter key={index} title="未着手" countSum={data.status_counts[index].count} />
-                ) : status.status === '調査中' ? (
-                    <CardCounter key={index} title="調査中" countSum={data.status_counts[index].count} />
-                ) : (
-                    ''
-                )
-            })} */}
 
             {!isLoading ? (
                 <Card className="col-span-2 md:col-span-2 lg:col-span-4">
-                    <SearchComponent initialSelectedStatuses={checkSatatus} initialDateRange={initialDateRange} onSearchAction={handleSearch} />
+                    <SearchComponent
+                        initialSelectedStatuses={checkSatatus}
+                        initialSelectAssignees={checkAssignees}
+                        uniqueAssignees={data.unique_assignees}
+                        initialDateRange={initialDateRange}
+                        onSearchAction={handleSearch}
+                    />
                     <CardHeader>
                         <CardTitle></CardTitle>
 

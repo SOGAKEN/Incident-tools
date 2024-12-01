@@ -31,8 +31,14 @@ COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 
+# RUN npm install -g pm2
+# 
+# COPY docker/pm2.json ./pm2.json
+# COPY docker/entrypoint.sh ./entrypoint.sh
+
 # Cloud Run特有の設定
 EXPOSE 8080
 
 # アプリケーションの起動
 CMD ["node", "server.js"]
+#ENTRYPOINT ["/bin/sh", "./entrypoint.sh"]

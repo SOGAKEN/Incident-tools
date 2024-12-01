@@ -15,8 +15,12 @@ export async function GET(request: NextRequest) {
     const limit = parseInt(searchParams.get('limit') || '10')
     const status = searchParams.get('status')
     const statusArray = status ? status.split(',').map((s) => s.trim()) : []
+
     const from = searchParams.get('from')
     const to = searchParams.get('to')
+
+    const assignee = searchParams.get('assignee')
+    const assigneeArray = assignee ? assignee.split(',').map((s) => s.trim()) : []
 
     const response = await fetch(`${process.env.DBPILOT_URL}/incidents-all`, {
         method: 'POST',
@@ -28,7 +32,8 @@ export async function GET(request: NextRequest) {
             limit: limit,
             status: statusArray,
             from: from,
-            to: to
+            to: to,
+            assignee: assigneeArray
         })
     })
 

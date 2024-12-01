@@ -16,6 +16,7 @@ interface Incident {
     Status: string
     Vender: number
     Assignee: string
+    MessageID: string
     APIData: GAIResponse
     Responses: Response[]
     Relations: any[] // 現在は空配列ですが、必要に応じて型を定義可能
@@ -67,6 +68,7 @@ interface IncidentResponse {
     data: Incident[]
     meta: Meta
     status_counts: StatusCount[]
+    unique_assignees: string[]
 }
 
 // Status と Priority の型を定数として定義（オプション）

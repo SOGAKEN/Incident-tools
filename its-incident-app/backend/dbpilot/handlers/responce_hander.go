@@ -40,6 +40,9 @@ func CreateResponse(db *gorm.DB) gin.HandlerFunc {
 			zap.Int("vender", req.Vender),
 		)
 
+		jst, _ := time.LoadLocation("Asia/Tokyo")
+		currentTime := time.Now().In(jst)
+
 		// トランザクションを開始
 		tx := db.Begin()
 		if tx.Error != nil {
@@ -65,6 +68,7 @@ func CreateResponse(db *gorm.DB) gin.HandlerFunc {
 		// レスポンスを作成
 		response := models.Response{
 			IncidentID: req.IncidentID,
+			Datetime:   currentTime, // Datetimeフィールドを設定
 			Responder:  req.Responder,
 			Content:    req.Content,
 		}

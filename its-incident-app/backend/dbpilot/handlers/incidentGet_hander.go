@@ -6,7 +6,6 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
-	"strconv"
 	"strings"
 	"time"
 
@@ -72,23 +71,18 @@ func GetIncident(db *gorm.DB) gin.HandlerFunc {
 			zap.String("path", c.Request.URL.Path),
 		}
 
+		// パスパラメータからIDを取得
 		idStr := c.Param("id")
-		id, err := strconv.ParseUint(idStr, 10, 64)
-		if err != nil {
-			logger.Logger.Warn("無効なIDが指定されました",
-				append(logFields, zap.String("id", idStr))...)
-			c.JSON(http.StatusBadRequest, gin.H{"error": "無効なIDです"})
-			return
-		}
 
-		logFields = append(logFields, zap.Uint64("incident_id", id))
+		// IDをログフィールドに追加
+		logFields = append(logFields, zap.String("incident_id", idStr))
 
 		var incident models.Incident
-		err = db.Preload("Responses").
+		err := db.Preload("Responses").
 			Preload("Relations").
 			Preload("Relations.RelatedIncident").
 			Preload("APIData").
-			First(&incident, id).Error
+			First(&incident, "message_id = ?", idStr).Error
 
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -119,11 +113,12 @@ func GetIncidentAll(db *gorm.DB) gin.HandlerFunc {
 		}
 
 		var req struct {
-			Page   int      `json:"page"`
-			Limit  int      `json:"limit"`
-			Status []string `json:"status"`
-			From   string   `json:"from"`
-			To     string   `json:"to"`
+			Page      int      `json:"page"`
+			Limit     int      `json:"limit"`
+			Status    []string `json:"status"`
+			From      string   `json:"from"`
+			To        string   `json:"to"`
+			Assignees []string `json:"assignee"` // 複数のassigneeを配列で受け取る
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -135,7 +130,8 @@ func GetIncidentAll(db *gorm.DB) gin.HandlerFunc {
 		logFields = append(logFields,
 			zap.Int("page", req.Page),
 			zap.Int("limit", req.Limit),
-			zap.Strings("status", req.Status))
+			zap.Strings("status", req.Status),
+			zap.Strings("assignee", req.Assignees)) // assigneesのログ
 
 		// ページネーション設定
 		if req.Page < 1 {
@@ -160,6 +156,7 @@ func GetIncidentAll(db *gorm.DB) gin.HandlerFunc {
 				Status string `json:"status"`
 				Count  int64  `json:"count"`
 			}
+			uniqueAssignees []string
 		)
 
 		// トランザクション処理
@@ -173,11 +170,16 @@ func GetIncidentAll(db *gorm.DB) gin.HandlerFunc {
 			query := tx.Model(&models.Incident{}).
 				Where("id IN (?)", validIncidentIDs)
 
+			// 検索条件の追加
 			if len(req.Status) > 0 {
 				query = query.Where("status IN (?)", req.Status)
 			}
 			if !fromTime.IsZero() || !toTime.Equal(time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)) {
 				query = query.Where("datetime BETWEEN ? AND ?", fromTime, toTime)
+			}
+			// 複数のassigneeによる検索
+			if len(req.Assignees) > 0 {
+				query = query.Where("assignee IN (?)", req.Assignees)
 			}
 
 			// 総数取得
@@ -185,12 +187,28 @@ func GetIncidentAll(db *gorm.DB) gin.HandlerFunc {
 				return err
 			}
 
-			// ステータスカウント取得
-			if err := tx.Model(&models.Incident{}).
-				Where("id IN (?)", validIncidentIDs).
+			// ステータスカウント取得のクエリを構築
+			statusCountQuery := tx.Model(&models.Incident{}).
+				Where("id IN (?)", validIncidentIDs)
+
+			// assigneesフィルターがある場合はステータスカウントにも適用
+			if len(req.Assignees) > 0 {
+				statusCountQuery = statusCountQuery.Where("assignee IN (?)", req.Assignees)
+			}
+
+			if err := statusCountQuery.
 				Select("status, count(*) as count").
 				Group("status").
 				Scan(&statusCounts).Error; err != nil {
+				return err
+			}
+
+			// assigneeのユニーク値を取得
+			if err := tx.Model(&models.Incident{}).
+				Where("assignee IS NOT NULL AND assignee != ''"). // NULLや空文字を除外
+				Distinct("assignee").
+				Order("assignee ASC"). // assigneeでソート
+				Pluck("assignee", &uniqueAssignees).Error; err != nil {
 				return err
 			}
 
@@ -223,7 +241,8 @@ func GetIncidentAll(db *gorm.DB) gin.HandlerFunc {
 				"limit": req.Limit,
 				"pages": (total + int64(req.Limit) - 1) / int64(req.Limit),
 			},
-			"status_counts": statusCounts,
+			"status_counts":    statusCounts,
+			"unique_assignees": uniqueAssignees,
 		})
 	}
 }

@@ -35,7 +35,7 @@ const WorkLog = ({ isWorkflowLogExpanded, onClick, data }: WorkLog) => {
         setParsedAnswers(result)
     }, [data])
     return (
-        <div className={`fixed left-0 bottom-0 w-[49.8%] bg-white shadow-lg transition-all duration-300 ease-in-out ${isWorkflowLogExpanded ? 'h-full' : 'h-20'} pr-1 dark:bg-black`}>
+        <div className={`fixed left-0 bottom-0 w-[49.8%] bg-white shadow-lg transition-all duration-300 ease-in-out ${isWorkflowLogExpanded ? 'h-[calc(100%-10%)]' : 'h-20'} pr-1 dark:bg-black`}>
             <button
                 className="w-full h-20 flex items-center justify-between px-4 text-left font-semibold bg-yellow-100 hover:bg-yellow-100 focus:outline-none dark:text-black"
                 style={{
@@ -63,9 +63,31 @@ const WorkLog = ({ isWorkflowLogExpanded, onClick, data }: WorkLog) => {
                                 <CardTitle>回答 {index + 1}</CardTitle>
                             </CardHeader>
                             <CardContent>
-                                {Object.entries(logData).map(([key, value]) => (
-                                    <div key={key}>{value}</div>
-                                ))}
+                                {Object.entries(logData).map(([key, value]) => {
+                                    try {
+                                        // ```json と ``` を取り除いて JSON 文字列を抽出
+                                        const jsonString = value.replace(/```json|```/g, '').trim()
+                                        // JSON をパース
+                                        const parsedData = JSON.parse(jsonString)
+
+                                        // パースしたデータを表示
+                                        return (
+                                            <div key={key} className="p-2">
+                                                <div className="pl-4">
+                                                    {Object.entries(parsedData).map(([dataKey, dataValue]) => (
+                                                        <div key={dataKey} className="py-1">
+                                                            <span className="font-medium">{dataKey}:</span> <span>{String(dataValue)}</span>
+                                                        </div>
+                                                    ))}
+                                                </div>
+                                            </div>
+                                        )
+                                    } catch (error) {
+                                        // パースに失敗した場合は元の文字列を表示
+                                        console.error(`Failed to parse JSON for key ${key}:`, error)
+                                        return <div key={key}>{value}</div>
+                                    }
+                                })}
                             </CardContent>
                         </Card>
                     ))}
