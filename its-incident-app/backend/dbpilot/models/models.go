@@ -2,6 +2,7 @@ package models
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"gorm.io/gorm"
@@ -30,6 +31,37 @@ func (b *BaseModel) BeforeUpdate(tx *gorm.DB) error {
 	return nil
 }
 
+// IncidentStatus はインシデントの状態を管理するモデル
+type IncidentStatus struct {
+	BaseModel
+	Code         int    `gorm:"uniqueIndex;not null;comment:システムで使用する状態コード"`
+	Name         string `gorm:"size:50;not null;comment:画面表示用の状態名"`
+	Description  string `gorm:"type:text;comment:状態の詳細説明"`
+	IsActive     bool   `gorm:"default:true;comment:状態の有効/無効を管理"`
+	DisplayOrder int    `gorm:"comment:画面表示時の並び順"`
+
+	// リレーション
+	Incidents []Incident `gorm:"foreignKey:StatusID"`
+}
+
+// IncidentStatusTransition はステータス遷移を管理するモデル
+type IncidentStatusTransition struct {
+	BaseModel
+	FromStatusID uint           `gorm:"not null"`
+	ToStatusID   uint           `gorm:"not null"`
+	FromStatus   IncidentStatus `gorm:"foreignKey:FromStatusID"`
+	ToStatus     IncidentStatus `gorm:"foreignKey:ToStatusID"`
+	Allowed      bool           `gorm:"default:true"`
+
+	UniqueTransition string `gorm:"uniqueIndex:idx_status_transition"`
+}
+
+// BeforeCreate は遷移の一意性を確保するためのフック
+func (ist *IncidentStatusTransition) BeforeCreate(tx *gorm.DB) error {
+	ist.UniqueTransition = fmt.Sprintf("%d-%d", ist.FromStatusID, ist.ToStatusID)
+	return nil
+}
+
 type User struct {
 	BaseModel
 	Email    string `gorm:"unique;type:varchar(255);not null"`
@@ -54,9 +86,10 @@ type LoginSession struct {
 
 type Incident struct {
 	BaseModel
-	Datetime  time.Time `gorm:"not null"`
-	Status    string    `gorm:"size:50;not null"`
-	Assignee  string    `gorm:"size:100;not null"`
+	Datetime  time.Time      `gorm:"not null"`
+	StatusID  uint           `gorm:"not null;comment:状態ID"`
+	Status    IncidentStatus `gorm:"foreignKey:StatusID"`
+	Assignee  string         `gorm:"size:100;not null"`
 	Vender    int
 	MessageID string             `gorm:"size:100"`
 	Responses []Response         `gorm:"foreignKey:IncidentID"`
@@ -158,18 +191,18 @@ type ErrorLog struct {
 
 type EmailData struct {
 	BaseModel
-	MessageID               string `json:"message_id" gorm:"type:varchar(255);not null;uniqueIndex"` // PayloadのメッセージID
-	EmailFrom               string `json:"from" gorm:"type:varchar(255);not null"`                   // 差出人
-	To                      string `json:"to" gorm:"type:varchar(255);not null"`                     // 宛先
-	Subject                 string `json:"subject" gorm:"type:varchar(255)"`                         // 件名
-	Date                    string `json:"date" gorm:"type:varchar(255)"`                            // メールの日付
-	OriginalMessageID       string `json:"original_message_id" gorm:"type:varchar(255)"`             // メッセージID
-	MIMEVersion             string `json:"mime_version" gorm:"type:varchar(50)"`                     // MIMEバージョン
-	ContentType             string `json:"content_type" gorm:"type:varchar(255)"`                    // コンテンツタイプ
-	ContentTransferEncoding string `json:"content_transfer_encoding" gorm:"type:varchar(50)"`        // コンテンツ転送エンコーディング
-	CC                      string `json:"cc" gorm:"type:varchar(255)"`                              // CC
-	Body                    string `json:"body" gorm:"type:text"`                                    // メール本文
-	FileName                string `json:"file_name,omitempty" gorm:"type:varchar(255)"`             // ファイル名（添付ファイル）
+	MessageID               string `json:"message_id" gorm:"type:varchar(255);not null;uniqueIndex"`
+	EmailFrom               string `json:"from" gorm:"type:varchar(255);not null"`
+	To                      string `json:"to" gorm:"type:varchar(255);not null"`
+	Subject                 string `json:"subject" gorm:"type:varchar(255)"`
+	Date                    string `json:"date" gorm:"type:varchar(255)"`
+	OriginalMessageID       string `json:"original_message_id" gorm:"type:varchar(255)"`
+	MIMEVersion             string `json:"mime_version" gorm:"type:varchar(50)"`
+	ContentType             string `json:"content_type" gorm:"type:varchar(255)"`
+	ContentTransferEncoding string `json:"content_transfer_encoding" gorm:"type:varchar(50)"`
+	CC                      string `json:"cc" gorm:"type:varchar(255)"`
+	Body                    string `json:"body" gorm:"type:text"`
+	FileName                string `json:"file_name,omitempty" gorm:"type:varchar(255)"`
 }
 
 type EmailPayload struct {
@@ -177,16 +210,13 @@ type EmailPayload struct {
 	EmailData *EmailData `json:"email_data"`
 }
 
-// APIResponseDataQuery は検索条件を定義する構造体
 type APIResponseDataQuery struct {
-	// ID関連
 	IncidentID    *uint   `json:"incident_id,omitempty"`
 	TaskID        *string `json:"task_id,omitempty"`
 	WorkflowRunID *string `json:"workflow_run_id,omitempty"`
 	WorkflowID    *string `json:"workflow_id,omitempty"`
 	Status        *string `json:"status,omitempty"`
 
-	// テキストフィールド
 	Body           *string `json:"body,omitempty"`
 	User           *string `json:"user,omitempty"`
 	Host           *string `json:"host,omitempty"`
@@ -201,7 +231,6 @@ type APIResponseDataQuery struct {
 	Final          *string `json:"final,omitempty"`
 	IncidentNumber *int    `json:"incident_number"`
 
-	// 数値範囲
 	ElapsedTimeMin *float64 `json:"elapsed_time_min,omitempty"`
 	ElapsedTimeMax *float64 `json:"elapsed_time_max,omitempty"`
 	TotalTokensMin *int     `json:"total_tokens_min,omitempty"`
@@ -209,22 +238,16 @@ type APIResponseDataQuery struct {
 	TotalStepsMin  *int     `json:"total_steps_min,omitempty"`
 	TotalStepsMax  *int     `json:"total_steps_max,omitempty"`
 
-	// 時間範囲
 	CreatedAtStart  *int64 `json:"created_at_start,omitempty"`
 	CreatedAtEnd    *int64 `json:"created_at_end,omitempty"`
 	FinishedAtStart *int64 `json:"finished_at_start,omitempty"`
 	FinishedAtEnd   *int64 `json:"finished_at_end,omitempty"`
 
-	// ページネーション
-	Limit  *int `json:"limit,omitempty"`
-	Offset *int `json:"offset,omitempty"`
-
-	// ソート
+	Limit         *int    `json:"limit,omitempty"`
+	Offset        *int    `json:"offset,omitempty"`
 	SortBy        *string `json:"sort_by,omitempty"`
-	SortDirection *string `json:"sort_direction,omitempty"` // asc or desc
+	SortDirection *string `json:"sort_direction,omitempty"`
 }
-
-// models/models.go
 
 type ProcessStatus string
 
@@ -246,13 +269,12 @@ type ProcessingStatus struct {
 
 type LoginToken struct {
 	gorm.Model
-	Email     string    `gorm:"type:varchar(255);index;not null"` // 外部キー制約用
+	Email     string    `gorm:"type:varchar(255);index;not null"`
 	Token     string    `gorm:"uniqueIndex;type:varchar(255);not null"`
 	ExpiresAt time.Time `gorm:"not null"`
 	IsExpired bool      `gorm:"default:false"`
 }
 
-// TokenAccess はトークンの使用履歴を記録するモデル
 type TokenAccess struct {
 	BaseModel
 	TokenID    uint      `gorm:"index;not null"`

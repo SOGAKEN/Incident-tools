@@ -38,7 +38,7 @@ const useAPIAction = (defaultConfig: Partial<ActionConfig>) => {
     const { toast } = useToast()
 
     // Fetchの状態と手動実行関数を初期化
-    const { execute, isLoading, data, error } = useFetch<APIResponse>('', {
+    const { execute, isLoading, data, error } = useFetch<APIResponse>(defaultConfig.endpoint || '', {
         method: 'POST',
         onSuccess: (data) => {
             toast({
@@ -47,6 +47,7 @@ const useAPIAction = (defaultConfig: Partial<ActionConfig>) => {
             })
         },
         onError: (error) => {
+            console.log(error)
             toast({
                 variant: 'destructive',
                 description: error.message
@@ -58,6 +59,8 @@ const useAPIAction = (defaultConfig: Partial<ActionConfig>) => {
     const executeAction = async (config: Partial<ActionConfig> = {}) => {
         const mergedConfig = { ...defaultConfig, ...config }
 
+        console.log('Endpoint:', mergedConfig.endpoint)
+        console.log('Body:', mergedConfig.body)
         if (!mergedConfig.endpoint) {
             throw new Error('Endpoint is required for API action')
         }
@@ -78,18 +81,18 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
     const userData = useContext(UserContext)
     const [newResponse, setNewResponse] = useState('')
     const [isWorkflowLogExpanded, setIsWorkflowLogExpanded] = useState(false)
-    const { data, isLoading } = useFetch<Incident>(incident?.MessageID && isOpen ? `/api/getIncident/${incident.MessageID}` : '', {
+    const { data, isLoading } = useFetch<Incident>(incident?.MessageID && isOpen ? `/api/getIncident/${incident.MessageID}` : null, {
         useSWR: true,
         swrOptions: {
             refreshInterval: isOpen ? 1000 : undefined
         }
     })
-    const createAction = useAPIAction({})
+    const responseAction = useAPIAction({ endpoint: '/api/response' })
+    const notificationAction = useAPIAction({ endpoint: '/api/notification' })
 
     const actions = {
         response: () =>
-            createAction.execute({
-                endpoint: '/api/response',
+            responseAction.execute({
                 body: {
                     incident_id: data?.ID,
                     responder: userData?.name,
@@ -98,8 +101,7 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
                 }
             }),
         complete: () =>
-            createAction.execute({
-                endpoint: '/api/response',
+            responseAction.execute({
                 body: {
                     incident_id: data?.ID,
                     responder: userData?.name,
@@ -108,8 +110,7 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
                 }
             }),
         escalation: () =>
-            createAction.execute({
-                endpoint: '/api/notification',
+            notificationAction.execute({
                 body: {
                     incident_id: data?.ID,
                     responder: 'システム',
@@ -119,8 +120,7 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
                 }
             }),
         vendor: () =>
-            createAction.execute({
-                endpoint: '/api/response',
+            responseAction.execute({
                 body: {
                     incident_id: data?.ID,
                     responder: userData?.name,
@@ -167,7 +167,7 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
                             【ID:{incident?.ID}】&nbsp;&nbsp;{incident?.APIData.Subject}
                         </DialogTitle>
                         <DialogDescription className="flex gap-5 pt-4">
-                            <ParamCard title="ステータス" icon={true} status={data?.Status} content={''} />
+                            <ParamCard title="ステータス" icon={true} status={data?.Status.Name} content={''} />
                             <Separator orientation="vertical" />
                             <ParamCard title="判定" badge={true} status={data?.APIData.Judgment} content={''} />
                             <Separator orientation="vertical" />
@@ -284,7 +284,7 @@ const ActionPane: React.FC<{
     return (
         <div className="p-6 overflow-y-auto h-full w-1/2">
             <div className="space-y-6 flex flex-col h-full">
-                <StatusUpdate initialStatus={data.Status} initialVenderStatus={data.Vender} onStatusUpdate={handleAction.complete} onVendorContactUpdate={handleAction.vender} />
+                <StatusUpdate initialStatus={data.Status.Name} initialVenderStatus={data.Vender} onStatusUpdate={handleAction.complete} onVendorContactUpdate={handleAction.vender} />
                 <Separator className="dark:bg-white" />
                 <div className="flex-grow">
                     <div className="flex justify-between items-center mb-2">

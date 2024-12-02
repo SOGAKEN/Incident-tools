@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import useSWR, { SWRConfiguration } from 'swr'
 
 export type FetchState<T> = {
@@ -30,80 +30,102 @@ export class FetchError extends Error {
     }
 }
 
+type FetchUrl = string | null | undefined
+
 const defaultOptions: UseFetchOptions = {
     method: 'GET',
     useSWR: false
 }
 
-export function useFetch<T>(url: string, options: UseFetchOptions<T> = defaultOptions) {
-    const { method = 'GET', body, useSWR: useSWRFlag = false, swrOptions, fetchOptions, onSuccess, onError } = options
+export function useFetch<T>(url: FetchUrl, options: UseFetchOptions<T> = defaultOptions) {
+    // オプションの分割代入を useCallback の外で行い、個別の変数として保持
+    const method = options.method || 'GET'
+    const useSWRFlag = options.useSWR || false
+    const fetchOptions = options.fetchOptions
+    const onSuccess = options.onSuccess
+    const onError = options.onError
+    const body = options.body
 
-    // Basic Fetchの状態管理
     const [state, setState] = useState<FetchState<T>>({
         data: null,
         error: null,
-        isLoading: method === 'GET' // GETの場合は初期ローディング
+        isLoading: false
     })
 
-    // 共通のfetch処理
-    const fetchData = async (requestBody?: any): Promise<T> => {
-        const response = await fetch(url, {
-            method,
-            headers: {
-                'Content-Type': 'application/json',
-                ...fetchOptions?.headers
-            },
-            credentials: 'include',
-            body: requestBody ? JSON.stringify(requestBody) : undefined,
-            ...fetchOptions
-        })
+    // fetchData の実装を useCallback でラップ
+    const fetchData = useCallback(
+        async (requestBody?: any): Promise<T> => {
+            if (!url) throw new Error('URL is required')
 
-        if (!response.ok) {
-            const errorText = await response.text()
-            throw new FetchError(errorText || `HTTP error! status: ${response.status}`, response.status, response.statusText)
-        }
+            const response = await fetch(url, {
+                method,
+                headers: {
+                    'Content-Type': 'application/json',
+                    ...fetchOptions?.headers
+                },
+                credentials: 'include',
+                body: requestBody ? JSON.stringify(requestBody) : undefined,
+                ...fetchOptions
+            })
 
-        return response.json()
-    }
+            if (!response.ok) {
+                const errorText = await response.text()
+                throw new FetchError(errorText || `HTTP error! status: ${response.status}`, response.status, response.statusText)
+            }
 
-    // 手動実行用の関数
-    const execute = async (executeOptions?: { body?: any }): Promise<T | null> => {
-        setState((prev) => ({ ...prev, isLoading: true }))
+            return response.json()
+        },
+        [url, method, fetchOptions]
+    )
 
-        try {
-            const data = await fetchData(executeOptions?.body ?? body)
-            setState({ data, error: null, isLoading: false })
-            onSuccess?.(data)
-            return data
-        } catch (error) {
-            const errorObj = error instanceof Error ? error : new Error('Unknown error')
-            setState({ data: null, error: errorObj, isLoading: false })
-            onError?.(errorObj)
-            throw errorObj
-        }
-    }
+    // execute の実装を useCallback でラップ
+    const execute = useCallback(
+        async (executeOptions?: { body?: any }): Promise<T | null> => {
+            if (!url) return null
 
-    // GETリクエストの自動実行
+            setState((prev) => ({ ...prev, isLoading: true }))
+
+            try {
+                const data = await fetchData(executeOptions?.body ?? body)
+                setState({ data, error: null, isLoading: false })
+                onSuccess?.(data)
+                return data
+            } catch (error) {
+                const errorObj = error instanceof Error ? error : new Error('Unknown error')
+                setState({ data: null, error: errorObj, isLoading: false })
+                onError?.(errorObj)
+                throw errorObj
+            }
+        },
+        [url, fetchData, body, onSuccess, onError]
+    )
+
+    // 自動実行の useEffect
     useEffect(() => {
-        if (useSWRFlag || method !== 'GET') return
+        if (!url || useSWRFlag || method !== 'GET') return
         execute()
-    }, [url, method, useSWRFlag])
+    }, [url, method, useSWRFlag, execute])
 
-    // SWRの使用（GETリクエストのみ）
-    const swr = useSWR<T>(useSWRFlag && method === 'GET' ? url : null, () => fetchData(body), {
+    // SWR の実装
+    const {
+        data: swrData,
+        error: swrError,
+        isLoading: swrIsLoading,
+        mutate: swrMutate
+    } = useSWR<T>(url && useSWRFlag && method === 'GET' ? url : null, () => fetchData(body), {
         revalidateOnFocus: false,
         revalidateOnReconnect: false,
-        ...swrOptions
+        ...options.swrOptions
     })
 
     // レスポンスの統一
-    if (useSWRFlag && method === 'GET') {
+    if (useSWRFlag && method === 'GET' && url) {
         return {
-            data: swr.data ?? null,
-            error: swr.error,
-            isLoading: swr.isLoading,
-            mutate: swr.mutate,
-            execute
+            data: swrData ?? null,
+            error: swrError,
+            isLoading: swrIsLoading,
+            execute,
+            mutate: swrMutate
         }
     }
 
@@ -111,15 +133,12 @@ export function useFetch<T>(url: string, options: UseFetchOptions<T> = defaultOp
         ...state,
         execute,
         mutate: async () => {
-            setState((prev) => ({ ...prev, isLoading: true }))
-            const data = await fetchData(body)
-            setState({ data, error: null, isLoading: false })
-            return data
+            if (!url) throw new Error('Cannot mutate with invalid URL')
+            return fetchData(body)
         }
     }
 }
 
-// 型の補助
 export type UseFetchResult<T> = {
     data: T | null
     error: Error | null

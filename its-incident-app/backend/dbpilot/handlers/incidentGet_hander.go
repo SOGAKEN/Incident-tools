@@ -14,18 +14,31 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	ErrInvalidStatus  = "INVALID_STATUS"
+	ErrStatusNotFound = "STATUS_NOT_FOUND"
+)
+
 type ErrorResponse struct {
 	Error   string `json:"error"`
 	Details string `json:"details,omitempty"`
 	Code    string `json:"code,omitempty"`
 }
 
-// エラーハンドリング用のヘルパー関数
+// logAndReturnError エラーログとレスポンスを処理するヘルパー関数
 func logAndReturnError(c *gin.Context, statusCode int, err error, code string, logFields []zap.Field) {
-	logger.Logger.Error("エラーが発生しました",
-		append(logFields,
-			zap.Error(err),
-			zap.String("error_code", code))...)
+	// システムエラーはERROR、クライアントエラーはWARNレベルでログ出力
+	if statusCode >= 500 {
+		logger.Logger.Error("システムエラーが発生しました",
+			append(logFields,
+				zap.Error(err),
+				zap.String("error_code", code))...)
+	} else {
+		logger.Logger.Warn("クライアントエラーが発生しました",
+			append(logFields,
+				zap.Error(err),
+				zap.String("error_code", code))...)
+	}
 
 	c.JSON(statusCode, ErrorResponse{
 		Error: err.Error(),
@@ -33,7 +46,7 @@ func logAndReturnError(c *gin.Context, statusCode int, err error, code string, l
 	})
 }
 
-// トランザクション処理用のヘルパー関数
+// withTransaction トランザクション処理用のヘルパー関数
 func withTransaction(db *gorm.DB, c *gin.Context, logFields []zap.Field, fn func(*gorm.DB) error) error {
 	tx := db.Begin()
 	if tx.Error != nil {
@@ -44,7 +57,8 @@ func withTransaction(db *gorm.DB, c *gin.Context, logFields []zap.Field, fn func
 	defer func() {
 		if r := recover(); r != nil {
 			tx.Rollback()
-			logger.Logger.Error("パニックが発生しました",
+			// パニックはERRORレベル
+			logger.Logger.Error("トランザクション中にパニックが発生しました",
 				append(logFields, zap.Any("recover", r))...)
 		}
 	}()
@@ -59,10 +73,12 @@ func withTransaction(db *gorm.DB, c *gin.Context, logFields []zap.Field, fn func
 		return err
 	}
 
+	// トランザクション成功はDEBUGレベル
+	logger.Logger.Debug("トランザクションが正常に完了しました", logFields...)
 	return nil
 }
 
-// 単一インシデント取得ハンドラー
+// GetIncident 単一インシデント取得ハンドラー
 func GetIncident(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		logFields := []zap.Field{
@@ -71,10 +87,10 @@ func GetIncident(db *gorm.DB) gin.HandlerFunc {
 			zap.String("path", c.Request.URL.Path),
 		}
 
-		// パスパラメータからIDを取得
-		idStr := c.Param("id")
+		// リクエスト開始はDEBUGレベル
+		logger.Logger.Debug("インシデント取得を開始します", logFields...)
 
-		// IDをログフィールドに追加
+		idStr := c.Param("id")
 		logFields = append(logFields, zap.String("incident_id", idStr))
 
 		var incident models.Incident
@@ -82,28 +98,29 @@ func GetIncident(db *gorm.DB) gin.HandlerFunc {
 			Preload("Relations").
 			Preload("Relations.RelatedIncident").
 			Preload("APIData").
+			Preload("Status").
 			First(&incident, "message_id = ?", idStr).Error
 
 		if err != nil {
 			if errors.Is(err, gorm.ErrRecordNotFound) {
-				logger.Logger.Info("インシデントが見つかりませんでした", logFields...)
-				c.JSON(http.StatusNotFound, gin.H{"error": "インシデントが見つかりません"})
-			} else {
-				logAndReturnError(c, http.StatusInternalServerError, err, "FETCH_ERROR", logFields)
+				logAndReturnError(c, http.StatusBadRequest, errors.New("指定されたステータスが存在しません"), ErrStatusNotFound, logFields)
+				return
 			}
+			logAndReturnError(c, http.StatusInternalServerError, err, ErrInvalidStatus, logFields)
 			return
 		}
 
+		// 正常取得はINFOレベル（重要な業務イベント）
 		logger.Logger.Info("インシデントを取得しました",
 			append(logFields,
-				zap.String("status", incident.Status),
+				zap.String("status", incident.Status.Name),
 				zap.String("assignee", incident.Assignee))...)
 
 		c.JSON(http.StatusOK, incident)
 	}
 }
 
-// インシデント一覧取得ハンドラー
+// GetIncidentAll インシデント一覧取得ハンドラー
 func GetIncidentAll(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		logFields := []zap.Field{
@@ -112,13 +129,15 @@ func GetIncidentAll(db *gorm.DB) gin.HandlerFunc {
 			zap.String("path", c.Request.URL.Path),
 		}
 
+		logger.Logger.Debug("インシデント一覧取得を開始します", logFields...)
+
 		var req struct {
 			Page      int      `json:"page"`
 			Limit     int      `json:"limit"`
 			Status    []string `json:"status"`
 			From      string   `json:"from"`
 			To        string   `json:"to"`
-			Assignees []string `json:"assignee"` // 複数のassigneeを配列で受け取る
+			Assignees []string `json:"assignee"`
 		}
 
 		if err := c.ShouldBindJSON(&req); err != nil {
@@ -126,14 +145,6 @@ func GetIncidentAll(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		// 検索条件のログ
-		logFields = append(logFields,
-			zap.Int("page", req.Page),
-			zap.Int("limit", req.Limit),
-			zap.Strings("status", req.Status),
-			zap.Strings("assignee", req.Assignees)) // assigneesのログ
-
-		// ページネーション設定
 		if req.Page < 1 {
 			req.Page = 1
 		}
@@ -142,7 +153,6 @@ func GetIncidentAll(db *gorm.DB) gin.HandlerFunc {
 		}
 		offset := (req.Page - 1) * req.Limit
 
-		// 日付処理
 		fromTime, toTime, err := parseDateRange(req.From, req.To, logFields)
 		if err != nil {
 			logAndReturnError(c, http.StatusBadRequest, err, "INVALID_DATE", logFields)
@@ -159,64 +169,58 @@ func GetIncidentAll(db *gorm.DB) gin.HandlerFunc {
 			uniqueAssignees []string
 		)
 
-		// トランザクション処理
 		err = withTransaction(db, c, logFields, func(tx *gorm.DB) error {
-			// 有効なインシデントIDを取得
 			validIncidentIDs := tx.Model(&models.APIResponseData{}).
 				Select("incident_id").
 				Where("subject IS NOT NULL AND subject != ''")
 
-			// メインクエリ構築
 			query := tx.Model(&models.Incident{}).
 				Where("id IN (?)", validIncidentIDs)
 
-			// 検索条件の追加
 			if len(req.Status) > 0 {
-				query = query.Where("status IN (?)", req.Status)
+				var statusIDs []uint
+				if err := tx.Model(&models.IncidentStatus{}).
+					Where("name IN ?", req.Status).
+					Pluck("id", &statusIDs).Error; err != nil {
+					return err
+				}
+				query = query.Where("status_id IN ?", statusIDs)
 			}
 			if !fromTime.IsZero() || !toTime.Equal(time.Date(9999, 12, 31, 23, 59, 59, 0, time.UTC)) {
 				query = query.Where("datetime BETWEEN ? AND ?", fromTime, toTime)
 			}
-			// 複数のassigneeによる検索
 			if len(req.Assignees) > 0 {
 				query = query.Where("assignee IN (?)", req.Assignees)
 			}
 
-			// 総数取得
 			if err := query.Count(&total).Error; err != nil {
 				return err
 			}
 
-			// ステータスカウント取得のクエリを構築
-			statusCountQuery := tx.Model(&models.Incident{}).
-				Where("id IN (?)", validIncidentIDs)
+			// ステータスごとの件数を取得
+			statusCountQuery := tx.Table("incidents AS i").
+				Joins("JOIN incident_statuses AS s ON i.status_id = s.id").
+				Select("s.name AS status, COUNT(*) AS count").
+				Where("i.id IN (?)", validIncidentIDs).
+				Group("s.name")
 
-			// assigneesフィルターがある場合はステータスカウントにも適用
-			if len(req.Assignees) > 0 {
-				statusCountQuery = statusCountQuery.Where("assignee IN (?)", req.Assignees)
-			}
-
-			if err := statusCountQuery.
-				Select("status, count(*) as count").
-				Group("status").
-				Scan(&statusCounts).Error; err != nil {
+			if err := statusCountQuery.Scan(&statusCounts).Error; err != nil {
 				return err
 			}
 
-			// assigneeのユニーク値を取得
 			if err := tx.Model(&models.Incident{}).
-				Where("assignee IS NOT NULL AND assignee != ''"). // NULLや空文字を除外
+				Where("assignee IS NOT NULL AND assignee != ''").
 				Distinct("assignee").
-				Order("assignee ASC"). // assigneeでソート
+				Order("assignee ASC").
 				Pluck("assignee", &uniqueAssignees).Error; err != nil {
 				return err
 			}
 
-			// データ取得
 			return query.Preload("Responses").
 				Preload("Relations").
 				Preload("Relations.RelatedIncident").
 				Preload("APIData").
+				Preload("Status").
 				Order("id DESC").
 				Limit(req.Limit).
 				Offset(offset).
@@ -224,7 +228,7 @@ func GetIncidentAll(db *gorm.DB) gin.HandlerFunc {
 		})
 
 		if err != nil {
-			return // エラーは既にレスポンス済み
+			return
 		}
 
 		logger.Logger.Info("インシデント一覧を取得しました",
@@ -247,10 +251,16 @@ func GetIncidentAll(db *gorm.DB) gin.HandlerFunc {
 	}
 }
 
-// 日付範囲パース用のヘルパー関数
+// parseDateRange 日付範囲パース用のヘルパー関数
 func parseDateRange(fromStr, toStr string, logFields []zap.Field) (time.Time, time.Time, error) {
 	var fromTime, toTime time.Time
 	layout := "2006-01-02 15:04"
+
+	// パース処理の開始はDEBUGレベル
+	logger.Logger.Debug("日付範囲のパースを開始します",
+		append(logFields,
+			zap.String("from", fromStr),
+			zap.String("to", toStr))...)
 
 	if strings.TrimSpace(fromStr) != "" {
 		var err error

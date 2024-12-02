@@ -12,7 +12,7 @@ import (
 	"dbpilot/handlers"
 	"dbpilot/logger"
 	"dbpilot/middleware"
-	"dbpilot/models"
+	"dbpilot/migrations"
 
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
@@ -146,22 +146,11 @@ func setupRouter(db *gorm.DB, cfg *config.ServerConfig) *gin.Engine {
 func performMigrations(db *gorm.DB) error {
 	logger.Logger.Info("データベースマイグレーションを開始します")
 
-	err := db.AutoMigrate(
-		&models.User{},
-		&models.Incident{},
-		&models.Profile{},
-		&models.LoginToken{},
-		&models.LoginSession{},
-		&models.Response{},
-		&models.IncidentRelation{},
-		&models.APIResponseData{},
-		&models.ErrorLog{},
-		&models.EmailData{},
-		&models.ProcessingStatus{},
-		&models.TokenAccess{},
-	)
+	// マイグレーションマネージャーの作成
+	migrator := migrations.NewMigrator(db)
 
-	if err != nil {
+	// マイグレーションの実行
+	if err := migrator.RunMigrations(); err != nil {
 		return err
 	}
 

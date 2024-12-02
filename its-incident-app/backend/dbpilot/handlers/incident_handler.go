@@ -101,10 +101,25 @@ func CreateIncident(db *gorm.DB) gin.HandlerFunc {
 			}
 		}()
 
+		var defaultStatus models.IncidentStatus
+		if err := db.Where("code = ?", 0).First(&defaultStatus).Error; err != nil {
+			tx.Rollback()
+			logger.Logger.Error("デフォルトステータスの取得に失敗しました",
+				append(logFields,
+					zap.Error(err),
+					zap.Int("status_code", 0))...)
+			c.JSON(http.StatusInternalServerError, gin.H{
+				"error":   "Failed to get default status",
+				"details": err.Error(),
+			})
+			return
+		}
+
 		// インシデントの作成
 		incident := models.Incident{
 			Datetime:  datetime,
-			Status:    "未着手",
+			StatusID:  defaultStatus.ID,
+			Status:    defaultStatus,
 			Assignee:  "-",
 			Vender:    0,
 			MessageID: apiRequest.MessageID,

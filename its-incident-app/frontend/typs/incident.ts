@@ -13,7 +13,7 @@ interface Response {
 interface Incident {
     ID: number
     Datetime: string // ISO 8601形式の日時文字列
-    Status: string
+    Status: Statuces
     Vender: number
     Assignee: string
     MessageID: string
@@ -22,13 +22,18 @@ interface Incident {
     Relations: any[] // 現在は空配列ですが、必要に応じて型を定義可能
 }
 
+interface Statuces {
+    ID: number
+    Name: string
+}
+
 interface GAIResponse {
     ID: string
     IncidentID: string
     TaskID: string
     WorkflowRunID: string
     WorkflowID: string
-    Status: string
+    Status: Statuces
     Body: string
     User: string
     Host: string

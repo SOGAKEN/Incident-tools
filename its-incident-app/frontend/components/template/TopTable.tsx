@@ -136,8 +136,8 @@ const TopTable = ({ onIncidentClick }: TopTableProps) => {
                                             <TableCell>{incident.ID}</TableCell>
                                             <TableCell>
                                                 <div className="flex items-center gap-2">
-                                                    {GetStatusIcon(incident.Status)}
-                                                    <Badge variant={incident.Status === '未着手' ? 'red' : incident.Status === '調査中' ? 'yellow' : 'green'}>{incident.Status}</Badge>
+                                                    {GetStatusIcon(incident.Status.Name)}
+                                                    <Badge variant={incident.Status.Name === '未着手' ? 'red' : incident.Status.Name === '調査中' ? 'yellow' : 'green'}>{incident.Status.Name}</Badge>
                                                 </div>
                                             </TableCell>
                                             <TableCell> {incident.Vender !== 0 ? <Wrench /> : ''}</TableCell>
