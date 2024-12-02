@@ -24,16 +24,20 @@ const WorkLog = ({ isWorkflowLogExpanded, onClick, data }: WorkLog) => {
         if (!data) return
 
         const workflowLogsArray: WorkflowLog[] = JSON.parse(data.APIData.WorkflowLogs)
+        // nullや空文字列のエントリーをフィルタリング
         const result = workflowLogsArray.reduce((acc: ParsedAnswer[], item) => {
             const key = Object.keys(item)[0]
-            if (item[key] !== null && key !== undefined && key !== '') {
-                acc.push({ [key]: item[key] })
+            const value = item[key]
+            // キーが存在し、値がnullでなく、空文字列でもない場合のみ追加
+            if (key && value && value.trim() !== '') {
+                acc.push({ [key]: value })
             }
             return acc
         }, [])
 
         setParsedAnswers(result)
     }, [data])
+
     return (
         <div className={`fixed left-0 bottom-0 w-[49.8%] bg-white shadow-lg transition-all duration-300 ease-in-out ${isWorkflowLogExpanded ? 'h-[calc(100%-10%)]' : 'h-20'} pr-1 dark:bg-black`}>
             <button
@@ -84,8 +88,7 @@ const WorkLog = ({ isWorkflowLogExpanded, onClick, data }: WorkLog) => {
                                         )
                                     } catch (error) {
                                         // パースに失敗した場合は元の文字列を表示
-                                        console.error(`Failed to parse JSON for key ${key}:`, error)
-                                        return <div key={key}>{value}</div>
+                                        return <div key={key}>{value.replace(/```/g, '').trim()}</div>
                                     }
                                 })}
                             </CardContent>

@@ -82,7 +82,7 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
     const [newResponse, setNewResponse] = useState('')
     const [isWorkflowLogExpanded, setIsWorkflowLogExpanded] = useState(false)
     const { data, isLoading } = useFetch<Incident>(incident?.MessageID && isOpen ? `/api/getIncident/${incident.MessageID}` : null, {
-        useSWR: true,
+        useSWR: false,
         swrOptions: {
             refreshInterval: isOpen ? 1000 : undefined
         }
