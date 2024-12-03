@@ -48,8 +48,12 @@ func CreateIncident(db *gorm.DB) gin.HandlerFunc {
 			return
 		}
 
-		// statusがsucceededでない場合はエラーログに保存
+		// ステータスコードを設定
+		statusCode := 0
 		if apiRequest.Data.Status != "succeeded" {
+			statusCode = 99
+
+			// エラーログに保存
 			logger.Logger.Warn("ワークフローが失敗しました",
 				append(logFields,
 					zap.String("status", apiRequest.Data.Status),
@@ -76,11 +80,7 @@ func CreateIncident(db *gorm.DB) gin.HandlerFunc {
 
 			logger.Logger.Info("エラーログを保存しました",
 				append(logFields, zap.Uint("error_log_id", errorLog.ID))...)
-			c.JSON(http.StatusOK, gin.H{
-				"message": "Error log created successfully",
-				"id":      errorLog.ID,
-			})
-			return
+			// returnを削除して処理を継続
 		}
 
 		// 成功時の処理
@@ -102,12 +102,12 @@ func CreateIncident(db *gorm.DB) gin.HandlerFunc {
 		}()
 
 		var defaultStatus models.IncidentStatus
-		if err := db.Where("code = ?", 0).First(&defaultStatus).Error; err != nil {
+		if err := db.Where("code = ?", statusCode).First(&defaultStatus).Error; err != nil {
 			tx.Rollback()
 			logger.Logger.Error("デフォルトステータスの取得に失敗しました",
 				append(logFields,
 					zap.Error(err),
-					zap.Int("status_code", 0))...)
+					zap.Int("status_code", statusCode))...)
 			c.JSON(http.StatusInternalServerError, gin.H{
 				"error":   "Failed to get default status",
 				"details": err.Error(),

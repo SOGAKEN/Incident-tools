@@ -31,9 +31,9 @@ func (m *Migrator) RunMigrations() error {
 		}
 
 		// 2. インシデントステータスのマイグレーション
-		//		if err := m.migrateIncidentStatuses(tx); err != nil {
-		//			return fmt.Errorf("インシデントステータスのマイグレーションに失敗: %v", err)
-		//		}
+		if err := m.migrateIncidentStatuses(tx); err != nil {
+			return fmt.Errorf("インシデントステータスのマイグレーションに失敗: %v", err)
+		}
 
 		return nil
 	})
@@ -114,6 +114,7 @@ func (m *Migrator) createInitialStatuses(tx *gorm.DB) error {
 		{0, "未着手", "新規登録されたインシデント", 10},
 		{1, "調査中", "担当者が調査を実施中", 20},
 		{2, "解決済み", "解決済み", 30},
+		{99, "解決済み", "解決済み", 100},
 	}
 
 	for _, sm := range statusMappings {

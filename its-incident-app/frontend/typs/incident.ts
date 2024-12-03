@@ -22,9 +22,30 @@ interface Incident {
     Relations: any[] // 現在は空配列ですが、必要に応じて型を定義可能
 }
 
+interface IncidentDailog {
+    Data: Data
+}
+
+interface Data {
+    EmailData: EmailData
+    Incident: Incident
+}
+
 interface Statuces {
     ID: number
     Name: string
+    Code: number
+}
+
+interface EmailData {
+    ID: number
+    FROM: string
+    subject: string
+    Incident: Incident
+    from: string
+    CreatedAt: number
+    body: string
+    Relations: any[]
 }
 
 interface GAIResponse {
@@ -70,7 +91,7 @@ interface Meta {
 
 // APIレスポンス全体の型
 interface IncidentResponse {
-    data: Incident[]
+    data: EmailData[]
     meta: Meta
     status_counts: StatusCount[]
     unique_assignees: string[]
@@ -94,4 +115,4 @@ export type IncidentStatusType = (typeof IncidentStatus)[keyof typeof IncidentSt
 export type IncidentPriorityType = (typeof IncidentPriority)[keyof typeof IncidentPriority]
 
 // すべての型をエクスポート
-export type { Response as IncidentResponse, Incident, IncidentResponse as IncidentsApiResponse }
+export type { Response as IncidentResponse, Incident, IncidentResponse as IncidentsApiResponse, IncidentDailog, Data, EmailData }

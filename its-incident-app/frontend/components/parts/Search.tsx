@@ -7,11 +7,12 @@ import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover
 import { Checkbox } from '@/components/ui/checkbox'
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from '@/components/ui/dropdown-menu'
 import { format } from 'date-fns'
-import { Calendar as CalendarIcon, Plus, Activity, CheckCircle, AlertCircle } from 'lucide-react'
+import { Calendar as CalendarIcon, Plus, Activity, CheckCircle, AlertCircle, Ban } from 'lucide-react'
 import { ja } from 'date-fns/locale'
 import { DateRange } from 'react-day-picker'
 
 const statusItems = [
+    { icon: Ban, label: '失敗', count: 0 },
     { icon: AlertCircle, label: '未着手', count: 0 },
     { icon: Activity, label: '調査中', count: 0 },
     { icon: CheckCircle, label: '解決済み', count: 0 }

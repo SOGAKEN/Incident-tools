@@ -191,18 +191,19 @@ type ErrorLog struct {
 
 type EmailData struct {
 	BaseModel
-	MessageID               string `json:"message_id" gorm:"type:varchar(255);not null;uniqueIndex"`
-	EmailFrom               string `json:"from" gorm:"type:varchar(255);not null"`
-	To                      string `json:"to" gorm:"type:varchar(255);not null"`
-	Subject                 string `json:"subject" gorm:"type:varchar(255)"`
-	Date                    string `json:"date" gorm:"type:varchar(255)"`
-	OriginalMessageID       string `json:"original_message_id" gorm:"type:varchar(255)"`
-	MIMEVersion             string `json:"mime_version" gorm:"type:varchar(50)"`
-	ContentType             string `json:"content_type" gorm:"type:varchar(255)"`
-	ContentTransferEncoding string `json:"content_transfer_encoding" gorm:"type:varchar(50)"`
-	CC                      string `json:"cc" gorm:"type:varchar(255)"`
-	Body                    string `json:"body" gorm:"type:text"`
-	FileName                string `json:"file_name,omitempty" gorm:"type:varchar(255)"`
+	MessageID               string    `json:"message_id" gorm:"type:varchar(255);not null;uniqueIndex"`
+	EmailFrom               string    `json:"from" gorm:"type:varchar(255);not null"`
+	To                      string    `json:"to" gorm:"type:varchar(255);not null"`
+	Subject                 string    `json:"subject" gorm:"type:varchar(255)"`
+	Date                    string    `json:"date" gorm:"type:varchar(255)"`
+	OriginalMessageID       string    `json:"original_message_id" gorm:"type:varchar(255)"`
+	MIMEVersion             string    `json:"mime_version" gorm:"type:varchar(50)"`
+	ContentType             string    `json:"content_type" gorm:"type:varchar(255)"`
+	ContentTransferEncoding string    `json:"content_transfer_encoding" gorm:"type:varchar(50)"`
+	CC                      string    `json:"cc" gorm:"type:varchar(255)"`
+	Body                    string    `json:"body" gorm:"type:text"`
+	FileName                string    `json:"file_name,omitempty" gorm:"type:varchar(255)"`
+	Incident                *Incident `gorm:"foreignKey:MessageID;references:MessageID"`
 }
 
 type EmailPayload struct {

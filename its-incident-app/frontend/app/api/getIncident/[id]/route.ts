@@ -16,7 +16,7 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({ error: 'ID parameter is missing' }, { status: 400 })
     }
 
-    const response = await fetch(`${process.env.DBPILOT_URL}/incidents/${id}`, {
+    const response = await fetch(`${process.env.DBPILOT_URL}/email/${id}`, {
         method: 'GET',
         headers: {
             Authorization: `Bearer ${sessionID}`

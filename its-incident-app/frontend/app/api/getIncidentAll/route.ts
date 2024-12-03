@@ -63,7 +63,7 @@ export async function GET(request: NextRequest) {
         const assignee = searchParams.get('assignee')
         const assigneeArray = assignee ? assignee.split(',').map((s) => s.trim()) : []
 
-        const response = await fetch(`${process.env.DBPILOT_URL}/incidents-all`, {
+        const response = await fetch(`${process.env.DBPILOT_URL}/email-all`, {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${sessionID}`,

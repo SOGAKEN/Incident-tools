@@ -12,7 +12,8 @@ const badgeVariants = cva('inline-flex items-center rounded-full border px-2.5 p
             outline: 'text-foreground',
             green: 'text-green-500 border border-green-500 dark:bg-transparent',
             red: 'text-white border border-red-500 bg-red-500',
-            yellow: 'text-yellow-500 border-yellow-500'
+            yellow: 'text-yellow-500 border-yellow-500',
+            blue: 'text-blue-500 border-blue-500'
         }
     },
     defaultVariants: {

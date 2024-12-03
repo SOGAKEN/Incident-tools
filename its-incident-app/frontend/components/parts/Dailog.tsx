@@ -9,7 +9,7 @@ import { Separator } from '@/components/ui/separator'
 import { Textarea } from '@/components/ui/textarea'
 import { Calendar as CalendarIcon, MailIcon, AlertTriangle, ChevronDown, ChevronUp } from 'lucide-react'
 import { format, isWithinInterval, endOfDay, fromUnixTime } from 'date-fns'
-import { type Incident, type IncidentsApiResponse } from '@/typs/incident'
+import { type Incident, type IncidentsApiResponse, type Data, type EmailData } from '@/typs/incident'
 import { useContext, useState, useRef, useEffect } from 'react'
 import { useFetch } from '@/hooks/useFetch'
 import Loading from '../template/Loading'
@@ -81,7 +81,7 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
     const userData = useContext(UserContext)
     const [newResponse, setNewResponse] = useState('')
     const [isWorkflowLogExpanded, setIsWorkflowLogExpanded] = useState(false)
-    const { data, isLoading } = useFetch<Incident>(incident?.MessageID && isOpen ? `/api/getIncident/${incident.MessageID}` : null, {
+    const { data, isLoading } = useFetch<Data>(incident?.MessageID && isOpen ? `/api/getIncident/${incident.MessageID}` : null, {
         useSWR: false,
         swrOptions: {
             refreshInterval: isOpen ? 1000 : undefined
@@ -94,7 +94,7 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
         response: () =>
             responseAction.execute({
                 body: {
-                    incident_id: data?.ID,
+                    incident_id: data?.Incident.ID,
                     responder: userData?.name,
                     content: newResponse.replace(/\r\n/g, '\n'),
                     status: '調査中'
@@ -103,7 +103,7 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
         complete: () =>
             responseAction.execute({
                 body: {
-                    incident_id: data?.ID,
+                    incident_id: data?.Incident.ID,
                     responder: userData?.name,
                     content: 'インシデントが解決しました。',
                     status: '解決済み'
@@ -112,17 +112,17 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
         escalation: () =>
             notificationAction.execute({
                 body: {
-                    incident_id: data?.ID,
+                    incident_id: data?.Incident.ID,
                     responder: 'システム',
                     content: 'エスカレーションされました',
                     status: '調査中',
-                    title: data?.APIData.Subject
+                    title: data?.EmailData.subject
                 }
             }),
         vendor: () =>
             responseAction.execute({
                 body: {
-                    incident_id: data?.ID,
+                    incident_id: data?.Incident.ID,
                     responder: userData?.name,
                     content: 'ベンダーへ問い合わせ済み',
                     status: '調査中',
@@ -138,7 +138,7 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
                 behavior: 'smooth'
             })
         }
-    }, [data?.Responses])
+    }, [data?.Incident.Responses])
 
     const handleAction = {
         complete: () => actions.complete(),
@@ -155,6 +155,8 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
         setIsWorkflowLogExpanded(!isWorkflowLogExpanded)
     }
 
+    console.log(data)
+
     if (!data) return null
     if (isLoading) return <Loading />
 
@@ -164,36 +166,36 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
                 <DialogContent className="max-w-[80vw] w-full p-0 h-[95vh] flex flex-col dark:bg-black border-b border-white">
                     <DialogHeader className="p-[20px] flex flex-col bg-black dark dark:border-b-2 dark: border-b border-white">
                         <DialogTitle className="text-white">
-                            【ID:{incident?.ID}】&nbsp;&nbsp;{incident?.APIData.Subject}
+                            【ID:{data.EmailData.ID}】&nbsp;&nbsp;{data.EmailData.subject}
                         </DialogTitle>
                         <DialogDescription className="flex gap-5 pt-4">
-                            <ParamCard title="ステータス" icon={true} status={data?.Status.Name} content={''} />
+                            <ParamCard title="ステータス" icon={true} status={data.Incident.Status.Name} code={data.Incident.Status.Code} content={''} />
                             <Separator orientation="vertical" />
-                            <ParamCard title="判定" badge={true} status={data?.APIData.Judgment} content={''} />
+                            <ParamCard title="判定" badge={true} status={data.Incident.APIData.Judgment} code={data.Incident.APIData.Judgment === '静観' ? 2 : 0} content={''} />
                             <Separator orientation="vertical" />
-                            <ParamCard title="発生日時" content={format(data.Datetime, 'yyyy-MM-dd HH:mm')} />
+                            <ParamCard title="発生日時" content={format(data.Incident.Datetime, 'yyyy-MM-dd HH:mm')} code={0} />
                             <Separator orientation="vertical" />
-                            <ParamCard title="差出人" content={`${data?.APIData.From.replace(/<[^>]*>/g, '')}`} />
+                            <ParamCard title="差出人" content={`${data.Incident.APIData.From.replace(/<[^>]*>/g, '')}`} code={0} />
                             <Separator orientation="vertical" />
-                            <ParamCard title="担当者" content={data?.Assignee || '-'} />
+                            <ParamCard title="担当者" content={data.Incident.Assignee || '-'} code={0} />
                         </DialogDescription>
                     </DialogHeader>
                     {/* <div className="grid grid-cols-2 h-full"> */}
                     <div className="flex overflow-y-auto h-full">
                         {/* 左ペイン: メール表示 */}
-                        <EmailDisplay data={data} />
+                        <EmailDisplay data={data.EmailData} />
 
                         {/* 右ペイン: アクション */}
-                        <ActionPane data={data} tableContainerRef={tableContainerRef} newResponse={newResponse} setNewResponse={setNewResponse} handleAction={handleAction} />
+                        <ActionPane data={data.Incident} tableContainerRef={tableContainerRef} newResponse={newResponse} setNewResponse={setNewResponse} handleAction={handleAction} />
                     </div>
-                    <WorkLog isWorkflowLogExpanded={isWorkflowLogExpanded} onClick={handlWorkLogOpen} data={data} />
+                    <WorkLog isWorkflowLogExpanded={isWorkflowLogExpanded} onClick={handlWorkLogOpen} data={data.Incident} />
                 </DialogContent>
             </Dialog>
         </div>
     )
 }
 
-const EmailDisplay: React.FC<{ data: Incident }> = ({ data }) => {
+const EmailDisplay: React.FC<{ data: EmailData }> = ({ data }) => {
     // メール表示部分のコンポーネント実装
     return (
         <div className="p-6 bg-gray-100 flex flex-col overflow-hidden dark:bg-black w-1/2">
@@ -205,10 +207,10 @@ const EmailDisplay: React.FC<{ data: Incident }> = ({ data }) => {
                                 <div className="flex items-center space-x-2 text-left w-full">
                                     <MailIcon className="h-5 w-5 text-gray-500 flex-shrink-0 dark:text-white" />
                                     <div className="flex-grow min-w-0">
-                                        <div className="font-semibold truncate break-words whitespace-pre-wrap">{data.APIData.Subject}</div>
+                                        <div className="font-semibold truncate break-words whitespace-pre-wrap">{data.subject}</div>
                                         <div className="text-sm text-gray-500 flex justify-between">
-                                            <span className="truncate">{data.APIData.From}</span>
-                                            <span className="flex-shrink-0 ml-2"> {format(fromUnixTime(data.APIData.CreatedAt), 'yyyy-MM-dd HH:mm')}</span>
+                                            <span className="truncate">{data.from}</span>
+                                            <span className="flex-shrink-0 ml-2"> {format(data.CreatedAt, 'yyyy-MM-dd HH:mm')}</span>
                                         </div>
                                     </div>
                                 </div>
@@ -216,16 +218,16 @@ const EmailDisplay: React.FC<{ data: Incident }> = ({ data }) => {
                             <AccordionContent>
                                 <div className="p-4 space-y-2">
                                     <div>
-                                        <span className="font-semibold">From:</span> {data.APIData.From}
+                                        <span className="font-semibold">From:</span> {data.from}
                                     </div>
                                     {/* <div>
                                                         <span className="font-semibold">To:</span> {data.APIData.From}
                                                     </div> */}
                                     <div>
-                                        <span className="font-semibold">Date:</span> {format(fromUnixTime(data.APIData.CreatedAt), 'yyyy-MM-dd HH:mm')}
+                                        <span className="font-semibold">Date:</span> {format(data.CreatedAt, 'yyyy-MM-dd HH:mm')}
                                     </div>
                                     <Separator className="my-4" />
-                                    <div className="whitespace-pre-wrap">{data.APIData.Body}</div>
+                                    <div className="whitespace-pre-wrap">{data.body}</div>
                                 </div>
                             </AccordionContent>
                         </AccordionItem>

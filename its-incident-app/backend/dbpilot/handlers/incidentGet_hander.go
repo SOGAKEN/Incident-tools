@@ -286,3 +286,209 @@ func parseDateRange(fromStr, toStr string, logFields []zap.Field) (time.Time, ti
 
 	return fromTime, toTime, nil
 }
+
+// EmailDATA
+func GetEmailDataAll(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		logFields := []zap.Field{
+			zap.String("handler", "GetEmailDataAll"),
+			zap.String("method", c.Request.Method),
+			zap.String("path", c.Request.URL.Path),
+		}
+
+		logger.Logger.Debug("EmailData一覧取得を開始します", logFields...)
+
+		var req struct {
+			Page      int      `json:"page"`
+			Limit     int      `json:"limit"`
+			Status    []string `json:"status"`
+			From      string   `json:"from"`
+			To        string   `json:"to"`
+			Assignees []string `json:"assignee"`
+		}
+
+		if err := c.ShouldBindJSON(&req); err != nil {
+			logAndReturnError(c, http.StatusBadRequest, err, "INVALID_REQUEST", logFields)
+			return
+		}
+
+		if req.Page < 1 {
+			req.Page = 1
+		}
+		if req.Limit <= 0 {
+			req.Limit = 10
+		}
+		offset := (req.Page - 1) * req.Limit
+
+		fromTime, toTime, err := parseDateRange(req.From, req.To, logFields)
+		if err != nil {
+			logAndReturnError(c, http.StatusBadRequest, err, "INVALID_DATE", logFields)
+			return
+		}
+
+		var (
+			emailDataList []models.EmailData
+			total         int64
+			statusCounts  []struct {
+				Status string `json:"status"`
+				Count  int64  `json:"count"`
+			}
+			uniqueAssignees []string
+		)
+
+		err = withTransaction(db, c, logFields, func(tx *gorm.DB) error {
+			query := tx.Model(&models.EmailData{}).
+				Joins("LEFT JOIN incidents ON email_data.message_id = incidents.message_id").
+				Joins("LEFT JOIN incident_statuses ON incidents.status_id = incident_statuses.id")
+
+			// フィルタリング
+			if len(req.Status) > 0 {
+				query = query.Where("incident_statuses.name IN ?", req.Status)
+			}
+			if !fromTime.IsZero() || !toTime.IsZero() {
+				query = query.Where("email_data.created_at BETWEEN ? AND ?", fromTime, toTime)
+			}
+			if len(req.Assignees) > 0 {
+				query = query.Where("incidents.assignee IN ?", req.Assignees)
+			}
+
+			if err := query.Count(&total).Error; err != nil {
+				return err
+			}
+
+			var currentStatusOrder int
+			if len(req.Status) > 0 {
+				err := tx.Model(&models.IncidentStatus{}).
+					Where("name IN ?", req.Status).
+					Select("MAX(display_order)").
+					Scan(&currentStatusOrder).Error
+				if err != nil {
+					return err
+				}
+			}
+
+			// ステータスごとの件数を取得（前のステータスのみ）
+			statusCountQuery := tx.Table("incidents AS i").
+				Joins("JOIN incident_statuses AS s ON i.status_id = s.id").
+				Select("s.name AS status, COUNT(*) AS count").
+				Group("s.name")
+
+			if err := statusCountQuery.Scan(&statusCounts).Error; err != nil {
+				return err
+			}
+
+			// 担当者の一覧を取得
+			assigneeQuery := tx.Model(&models.Incident{}).
+				Where("assignee IS NOT NULL AND assignee != ''").
+				Distinct("assignee").
+				Order("assignee ASC")
+
+			if len(req.Status) > 0 {
+				var statusIDs []uint
+				if err := tx.Model(&models.IncidentStatus{}).
+					Where("name IN ?", req.Status).
+					Pluck("id", &statusIDs).Error; err != nil {
+					return err
+				}
+				assigneeQuery = assigneeQuery.Where("status_id IN ?", statusIDs)
+			}
+			if !fromTime.IsZero() || !toTime.IsZero() {
+				assigneeQuery = assigneeQuery.Where("datetime BETWEEN ? AND ?", fromTime, toTime)
+			}
+
+			if err := assigneeQuery.Pluck("assignee", &uniqueAssignees).Error; err != nil {
+				return err
+			}
+
+			// データの取得
+			err = query.Preload("Incident.Status").
+				Preload("Incident.APIData").
+				Offset(offset).
+				Limit(req.Limit).
+				Order("email_data.created_at DESC").
+				Find(&emailDataList).Error
+
+			return err
+		})
+
+		if err != nil {
+			return
+		}
+
+		totalPages := (total + int64(req.Limit) - 1) / int64(req.Limit)
+
+		logger.Logger.Info("EmailData一覧を取得しました",
+			append(logFields,
+				zap.Int64("total", total),
+				zap.Int("count", len(emailDataList)))...)
+
+		c.Header("Cache-Control", "private, max-age=300")
+		c.JSON(http.StatusOK, gin.H{
+			"data": emailDataList,
+			"meta": gin.H{
+				"total": total,
+				"page":  req.Page,
+				"limit": req.Limit,
+				"pages": totalPages,
+			},
+			"status_counts":    statusCounts,
+			"unique_assignees": uniqueAssignees,
+		})
+	}
+}
+
+// エラーコードの定義
+const (
+	ErrEmailDataNotFoundCode = "ErrEmailDataNotFound"
+	ErrInvalidEmailDataCode  = "ErrInvalidEmailData"
+)
+
+// エラーメッセージの定義
+var (
+	ErrEmailDataNotFound = errors.New("EmailDataが見つかりません")
+	ErrInvalidEmailData  = errors.New("無効なEmailDataです")
+)
+
+func GetEmailDataWithIncident(db *gorm.DB) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		logFields := []zap.Field{
+			zap.String("handler", "GetEmailDataWithIncident"),
+			zap.String("method", c.Request.Method),
+			zap.String("path", c.Request.URL.Path),
+		}
+
+		// リクエスト開始はDEBUGレベル
+		logger.Logger.Debug("EmailData取得を開始します", logFields...)
+
+		messageID := c.Param("message_id")
+		logFields = append(logFields, zap.String("message_id", messageID))
+
+		var emailData models.EmailData
+
+		err := db.Preload("Incident.Responses").
+			Preload("Incident.Relations").
+			Preload("Incident.Relations.RelatedIncident").
+			Preload("Incident.APIData").
+			Preload("Incident.Status").
+			Where("message_id = ?", messageID).
+			First(&emailData).Error
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				logAndReturnError(c, http.StatusNotFound, ErrEmailDataNotFound, ErrEmailDataNotFoundCode, logFields)
+				return
+			}
+			logAndReturnError(c, http.StatusInternalServerError, err, ErrInvalidEmailDataCode, logFields)
+			return
+		}
+
+		// 正常取得はINFOレベル（重要な業務イベント）
+		logger.Logger.Info("EmailDataを取得しました",
+			append(logFields,
+				zap.String("incident_status", emailData.Incident.Status.Name))...)
+
+		c.JSON(http.StatusOK, gin.H{
+			"EmailData": emailData,
+			"Incident":  emailData.Incident,
+		})
+	}
+}

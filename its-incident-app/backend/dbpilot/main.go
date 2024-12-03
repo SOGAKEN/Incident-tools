@@ -122,6 +122,9 @@ func setupRouter(db *gorm.DB, cfg *config.ServerConfig) *gin.Engine {
 		protected.POST("/incidents-all", handlers.GetIncidentAll(db))
 		protected.POST("/incident-relations", handlers.CreateIncidentRelation(db))
 
+		protected.POST("/email-all", handlers.GetEmailDataAll(db))
+		protected.GET("/email/:message_id", handlers.GetEmailDataWithIncident(db))
+
 		// レスポンス関連
 		protected.POST("/responses", handlers.CreateResponse(db))
 

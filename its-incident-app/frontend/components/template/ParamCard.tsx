@@ -7,20 +7,21 @@ type ParamCard = {
     status?: string
     badge?: boolean
     icon?: boolean
+    code: number
 }
 
-const ParamCard: React.FC<ParamCard> = ({ title, content, status, badge, icon }) => {
+const ParamCard: React.FC<ParamCard> = ({ title, content, status, badge, icon, code }) => {
     return (
         <div className="flex items-center gap-2">
             <h4 className="font-semibold text-black mix-blend-normal dark:text-white">{title}:</h4>
             {icon ? (
                 <div className="flex items-center gap-2">
-                    {status && GetStatusIcon(status)}
-                    <StatusDisplay text={status} red="未着手" yellow="調査中" green="解決済み" />
+                    {status && GetStatusIcon(code)}
+                    <StatusDisplay text={status} code={code} />
                 </div>
             ) : badge ? (
                 <div className="flex items-center gap-2">
-                    <StatusDisplay text={status} red={'要対応'} yellow="" green="静観" />
+                    <StatusDisplay text={status} code={code} />
                 </div>
             ) : (
                 <div className="flex items-center gap-2">
