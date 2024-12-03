@@ -32,7 +32,7 @@ const TopTable = ({ onIncidentClick }: TopTableProps) => {
     const [page, setPage] = useState(1)
     const [limit, setLimit] = useState(10)
     const { data, isLoading } = useFetch<IncidentsApiResponse>(`/api/getIncidentAll?page=${page}&limit=${limit}&status=${queryParam}${dateParam}&assignee=${queryAssignee}`, {
-        useSWR: false,
+        useSWR: true,
         swrOptions: {
             refreshInterval: 5000
         }

@@ -4,6 +4,7 @@ go 1.23.2
 
 require (
 	github.com/gin-gonic/gin v1.10.0
+	github.com/go-gormigrate/gormigrate/v2 v2.1.3
 	github.com/joho/godotenv v1.5.1
 	go.uber.org/zap v1.27.0
 	gorm.io/driver/postgres v1.5.9
