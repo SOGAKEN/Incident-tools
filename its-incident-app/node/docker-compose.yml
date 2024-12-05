@@ -1,0 +1,12 @@
+services:
+  node:
+    image: node:18
+    container_name: node-runtime
+    working_dir: /usr/src/app
+    volumes:
+      - .:/usr/src/app
+      - /usr/src/app/node_modules
+    stdin_open: true
+    tty: true
+    ports:
+      - 8099:8000

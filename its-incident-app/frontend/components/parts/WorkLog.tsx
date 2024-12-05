@@ -22,6 +22,7 @@ const WorkLog = ({ isWorkflowLogExpanded, onClick, data }: WorkLog) => {
 
     useEffect(() => {
         if (!data) return
+        if (!data.APIData.WorkflowLogs) return
 
         const workflowLogsArray: WorkflowLog[] = JSON.parse(data.APIData.WorkflowLogs)
         // nullや空文字列のエントリーをフィルタリング
