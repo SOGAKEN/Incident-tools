@@ -17,6 +17,13 @@ type WorkLog = {
     data: Incident
 }
 
+type ParseData = {
+    answer?: string
+    judgment?: string
+    relatedwork?: string
+    evidence?: string
+}
+
 const WorkLog = ({ isWorkflowLogExpanded, onClick, data }: WorkLog) => {
     const [parsedAnswers, setParsedAnswers] = useState<ParsedAnswer[]>([])
 
@@ -64,35 +71,56 @@ const WorkLog = ({ isWorkflowLogExpanded, onClick, data }: WorkLog) => {
                 <div className={`p-4 overflow-y-auto h-[calc(100%-4rem)] ${isWorkflowLogExpanded ? 'block' : 'hidden'}`}>
                     {parsedAnswers.map((logData, index) => (
                         <Card className="col-span-1 md:col-span-1 mb-1" key={index}>
-                            <CardHeader>
-                                <CardTitle>回答 {index + 1}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                {Object.entries(logData).map(([key, value]) => {
-                                    try {
-                                        // ```json と ``` を取り除いて JSON 文字列を抽出
-                                        const jsonString = value.replace(/```json|```/g, '').trim()
-                                        // JSON をパース
-                                        const parsedData = JSON.parse(jsonString)
+                            {Object.entries(logData).map(([key, value]) => {
+                                try {
+                                    // ```json と ``` を取り除いて JSON 文字列を抽出
+                                    const jsonString = value.replace(/```json|```/g, '').trim()
+                                    // JSON をパース
+                                    const parsedData: ParseData = JSON.parse(jsonString)
 
-                                        // パースしたデータを表示
-                                        return (
-                                            <div key={key} className="p-2">
-                                                <div className="pl-4">
-                                                    {Object.entries(parsedData).map(([dataKey, dataValue]) => (
-                                                        <div key={dataKey} className="py-1">
-                                                            <span className="font-medium">{dataKey}:</span> <span>{String(dataValue)}</span>
-                                                        </div>
-                                                    ))}
+                                    console.log(parsedData)
+
+                                    // パースしたデータを表示
+                                    return (
+                                        <>
+                                            <CardHeader>
+                                                <CardTitle>
+                                                    判断 {index + 1}：{parsedData.answer}
+                                                </CardTitle>
+                                            </CardHeader>
+
+                                            <CardContent>
+                                                {/* <div key={key} className="p-2"> */}
+                                                <div className="p-2">
+                                                    <div className="pl-4">
+                                                        {/* {Object.entries(parsedData).map(([dataKey, dataValue]) => ( */}
+                                                        {/*     <div key={dataKey} className="py-1"> */}
+                                                        {/*         <span className="font-medium">{dataKey}:</span> <span>{String(dataValue)}</span> */}
+                                                        {/*     </div> */}
+                                                        {/* ))} */}
+                                                        <div>{parsedData.relatedwork}</div>
+                                                        <div>{parsedData.evidence}</div>
+                                                        <div>{parsedData.judgment}</div>
+                                                    </div>
                                                 </div>
-                                            </div>
-                                        )
-                                    } catch (error) {
-                                        // パースに失敗した場合は元の文字列を表示
-                                        return <div key={key}>{value.replace(/```/g, '').trim()}</div>
-                                    }
-                                })}
-                            </CardContent>
+                                            </CardContent>
+                                        </>
+                                    )
+                                } catch (error) {
+                                    // パースに失敗した場合は元の文字列を表示
+                                    return (
+                                        <>
+                                            <CardHeader>
+                                                <CardTitle>回答 {index + 1}</CardTitle>
+                                            </CardHeader>
+
+                                            <CardContent>
+                                                <div key={key}>{value.replace(/```/g, '').trim()}</div>
+                                            </CardContent>
+                                        </>
+                                    )
+                                }
+                            })}
                         </Card>
                     ))}
                 </div>

@@ -8,6 +8,14 @@ import (
 // WorkflowLog はワークフローのログ情報を定義します
 type WorkflowLog map[string]string
 
+// RetryInfo はリトライ処理の情報を保持します
+type RetryInfo struct {
+	Attempt     int           `json:"attempt"`      // 試行回数
+	LastAttempt time.Time     `json:"last_attempt"` // 最後の試行時刻
+	Delay       time.Duration `json:"delay"`        // 次回リトライまでの待機時間
+	Error       string        `json:"error"`        // エラー内容
+}
+
 // AIResponseData は処理結果のデータ構造を定義します
 type AIResponseData struct {
 	ID         string `json:"id"`
@@ -42,6 +50,7 @@ type AIResponse struct {
 	TaskID        string         `json:"task_id"`
 	WorkflowRunID string         `json:"workflow_run_id"`
 	Data          AIResponseData `json:"data"`
+	RetryHistory  []RetryInfo    `json:"retry_history,omitempty"` // リトライ履歴を追加
 }
 
 // AIResponsePayload はDBpilotのincidentsエンドポイントへ送信するペイロードです
@@ -66,6 +75,32 @@ type OutputsData struct {
 	Judgment     string          `json:"judgment"`
 	Sender       string          `json:"sender"`
 	Final        string          `json:"final"`
+}
+
+// AddRetryInfo はリトライ情報を履歴に追加します
+func (r *AIResponse) AddRetryInfo(attempt int, delay time.Duration, err error) {
+	if r.RetryHistory == nil {
+		r.RetryHistory = make([]RetryInfo, 0)
+	}
+
+	retryInfo := RetryInfo{
+		Attempt:     attempt,
+		LastAttempt: time.Now(),
+		Delay:       delay,
+	}
+	if err != nil {
+		retryInfo.Error = err.Error()
+	}
+
+	r.RetryHistory = append(r.RetryHistory, retryInfo)
+}
+
+// GetLastRetryInfo は最後のリトライ情報を取得します
+func (r *AIResponse) GetLastRetryInfo() *RetryInfo {
+	if len(r.RetryHistory) == 0 {
+		return nil
+	}
+	return &r.RetryHistory[len(r.RetryHistory)-1]
 }
 
 // NewErrorResponse はエラー情報を含むAIResponseを生成するヘルパー関数です

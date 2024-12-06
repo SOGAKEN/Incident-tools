@@ -27,7 +27,7 @@ func main() {
 
 	// サービスの初期化
 	dbpilotService := services.NewDBPilotService(cfg.DBPilotURL, cfg.ServiceToken)
-	aiService := services.NewAIService(cfg.AIEndpoint, cfg.AIToken)
+	aiService := services.NewAIService(&cfg.AI)
 
 	// ルーターの設定
 	r := gin.New()

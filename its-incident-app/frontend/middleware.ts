@@ -82,6 +82,15 @@ export async function middleware(request: NextRequest) {
                 // Cookie設定のデバッグログ
                 console.log('Setting cookie for domain:', new URL(request.url).hostname)
 
+                // response.cookies.set('session_id', verificationResult.email, {
+                //     httpOnly: true,
+                //     secure: process.env.NODE_ENV === 'production',
+                //     sameSite: 'lax',
+                //     maxAge: 60 * 60 * 24,
+                //     domain: new URL(request.url).hostname,
+                //     path: '/'
+                // })
+
                 response.cookies.set('session_id', verificationResult.email, {
                     httpOnly: true,
                     secure: process.env.NODE_ENV === 'production',
@@ -90,7 +99,6 @@ export async function middleware(request: NextRequest) {
                     domain: new URL(request.url).hostname,
                     path: '/'
                 })
-
                 return response
             }
 
