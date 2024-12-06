@@ -18,10 +18,12 @@ type WorkLog = {
 }
 
 type ParseData = {
-    answer?: string
-    judgment?: string
-    relatedwork?: string
-    evidence?: string
+    answer: string
+    judgment: string
+    evidence: string
+    attention?: string
+    time?: string
+    pastResponseHitsoty: string
 }
 
 const WorkLog = ({ isWorkflowLogExpanded, onClick, data }: WorkLog) => {
@@ -92,16 +94,12 @@ const WorkLog = ({ isWorkflowLogExpanded, onClick, data }: WorkLog) => {
                                             <CardContent>
                                                 {/* <div key={key} className="p-2"> */}
                                                 <div className="p-2">
-                                                    <div className="pl-4">
-                                                        {/* {Object.entries(parsedData).map(([dataKey, dataValue]) => ( */}
-                                                        {/*     <div key={dataKey} className="py-1"> */}
-                                                        {/*         <span className="font-medium">{dataKey}:</span> <span>{String(dataValue)}</span> */}
-                                                        {/*     </div> */}
-                                                        {/* ))} */}
-                                                        <div>{parsedData.relatedwork}</div>
-                                                        <div>{parsedData.evidence}</div>
-                                                        <div>{parsedData.judgment}</div>
-                                                    </div>
+                                                    <div className="text-base font-bold pb-2">根拠：{parsedData.evidence}</div>
+                                                    <div className="text-base font-bold pb-2">判断：{parsedData.judgment}</div>
+
+                                                    {parsedData.time ? <div className="text-base font-bold pb-2">障害検知時刻：{parsedData.judgment}</div> : ''}
+                                                    {parsedData.pastResponseHitsoty ? <div className="text-base font-bold pb-2">過去対応：{parsedData.time}</div> : ''}
+                                                    {parsedData.attention ? <div className="text-base font-bold pb-2 text-red-500">※ {parsedData.attention}</div> : ''}
                                                 </div>
                                             </CardContent>
                                         </>
