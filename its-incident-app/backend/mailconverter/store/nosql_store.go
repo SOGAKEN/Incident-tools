@@ -71,6 +71,8 @@ func (s *EmailStore) UpdateProcessing(ctx context.Context, processing *models.Em
 
 func (s *EmailStore) UpdateServiceState(ctx context.Context, state *models.ServiceState) error {
 	state.UpdatedAt = time.Now()
+	state.TruncateEmailBody() // 保存前に本文を制限
+
 	key := datastore.NameKey(kindServiceState, state.MessageID+":"+state.ServiceType, nil)
 	_, err := s.client.Put(ctx, key, state)
 	return err

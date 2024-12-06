@@ -30,3 +30,22 @@ type ServiceState struct {
 	CreatedAt    time.Time        `datastore:"created_at"`
 	UpdatedAt    time.Time        `datastore:"updated_at"`
 }
+
+const MaxBodySize = 1000 // 本文の最大バイト数
+
+func (s *ServiceState) TruncateEmailBody() {
+	if s.EmailData == nil || s.EmailData.Body == "" {
+		return
+	}
+
+	bodyLen := len(s.EmailData.Body)
+	if bodyLen > MaxBodySize {
+		// UTF-8文字列を正しく切り取る
+		for i := range s.EmailData.Body {
+			if i >= MaxBodySize {
+				s.EmailData.Body = s.EmailData.Body[:i] + "... (truncated)"
+				break
+			}
+		}
+	}
+}
