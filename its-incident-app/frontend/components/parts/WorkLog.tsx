@@ -80,17 +80,14 @@ const WorkLog = ({ isWorkflowLogExpanded, onClick, data }: WorkLog) => {
                                     // JSON をパース
                                     const parsedData: ParseData = JSON.parse(jsonString)
 
-                                    console.log(parsedData)
-
                                     // パースしたデータを表示
                                     return (
-                                        <>
+                                        <div key={index}>
                                             <CardHeader>
                                                 <CardTitle>
                                                     判断 {index + 1}：{parsedData.answer}
                                                 </CardTitle>
                                             </CardHeader>
-
                                             <CardContent>
                                                 {/* <div key={key} className="p-2"> */}
                                                 <div className="p-2">
@@ -102,12 +99,12 @@ const WorkLog = ({ isWorkflowLogExpanded, onClick, data }: WorkLog) => {
                                                     {parsedData.attention ? <div className="text-base font-bold pb-2 text-red-500">※ {parsedData.attention}</div> : ''}
                                                 </div>
                                             </CardContent>
-                                        </>
+                                        </div>
                                     )
                                 } catch (error) {
                                     // パースに失敗した場合は元の文字列を表示
                                     return (
-                                        <>
+                                        <div key={index}>
                                             <CardHeader>
                                                 <CardTitle>回答 {index + 1}</CardTitle>
                                             </CardHeader>
@@ -115,7 +112,7 @@ const WorkLog = ({ isWorkflowLogExpanded, onClick, data }: WorkLog) => {
                                             <CardContent>
                                                 <div key={key}>{value.replace(/```/g, '').trim()}</div>
                                             </CardContent>
-                                        </>
+                                        </div>
                                     )
                                 }
                             })}
