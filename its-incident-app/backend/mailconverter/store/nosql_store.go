@@ -71,10 +71,12 @@ func (s *EmailStore) UpdateProcessing(ctx context.Context, processing *models.Em
 
 func (s *EmailStore) UpdateServiceState(ctx context.Context, state *models.ServiceState) error {
 	state.UpdatedAt = time.Now()
-	state.TruncateEmailBody() // 保存前に本文を制限
+
+	// Datastore保存用に本文を制限したコピーを作成
+	storeState := state.ServiceStateForStore()
 
 	key := datastore.NameKey(kindServiceState, state.MessageID+":"+state.ServiceType, nil)
-	_, err := s.client.Put(ctx, key, state)
+	_, err := s.client.Put(ctx, key, storeState)
 	return err
 }
 

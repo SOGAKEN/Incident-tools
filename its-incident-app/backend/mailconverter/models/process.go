@@ -33,19 +33,25 @@ type ServiceState struct {
 
 const MaxBodySize = 1000 // 本文の最大バイト数
 
-func (s *ServiceState) TruncateEmailBody() {
-	if s.EmailData == nil || s.EmailData.Body == "" {
-		return
-	}
+// ServiceStateForStore はDatastore保存用に本文を制限したServiceStateのコピーを作成します
+func (s *ServiceState) ServiceStateForStore() *ServiceState {
+	copy := *s // 浅いコピー
 
-	bodyLen := len(s.EmailData.Body)
-	if bodyLen > MaxBodySize {
-		// UTF-8文字列を正しく切り取る
-		for i := range s.EmailData.Body {
-			if i >= MaxBodySize {
-				s.EmailData.Body = s.EmailData.Body[:i] + "... (truncated)"
-				break
+	if s.EmailData != nil {
+		// EmailDataのディープコピー
+		emailDataCopy := *s.EmailData
+		copy.EmailData = &emailDataCopy
+
+		// 保存用に本文を制限
+		if len(copy.EmailData.Body) > MaxBodySize {
+			for i := range copy.EmailData.Body {
+				if i >= MaxBodySize {
+					copy.EmailData.Body = copy.EmailData.Body[:i] + "... (truncated)"
+					break
+				}
 			}
 		}
 	}
+
+	return &copy
 }
