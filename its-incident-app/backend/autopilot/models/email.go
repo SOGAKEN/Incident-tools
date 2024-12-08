@@ -24,9 +24,10 @@ type EmailPayload struct {
 // APIPayload は外部APIへのリクエストペイロードの構造を定義します
 type APIPayload struct {
 	Inputs struct {
-		Subject string `json:"subject"`
-		From    string `json:"from"`
-		Body    string `json:"body"`
+		Subject   string `json:"subject"`
+		From      string `json:"from"`
+		Body      string `json:"body"`
+		MessageID string `json:"message_id"`
 	} `json:"inputs"`
 	User string `json:"user"`
 }

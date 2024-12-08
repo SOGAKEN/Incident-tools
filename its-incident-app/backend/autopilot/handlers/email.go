@@ -92,7 +92,7 @@ func (h *EmailHandler) processEmailAsync(messageID string, emailData *models.Ema
 	defer cancel()
 
 	if err := h.processAIAndSaveIncident(ctx, emailData, messageID); err != nil {
-		logger.Logger.Error("AI処理が失敗しました", // メッセージをより簡潔に
+		logger.Logger.Error("AI処理が失敗しました",
 			append(logFields, zap.Error(err))...)
 		h.emailStore.SetError(ctx, messageID, "AI_PROCESS_ERROR", err.Error())
 		return
@@ -121,8 +121,8 @@ func (h *EmailHandler) processAIAndSaveIncident(ctx context.Context, emailData *
 		h.emailStore.UpdateServiceState(ctx, serviceState)
 	}
 
-	// AI処理の実行
-	aiResponse, err := h.aiService.ProcessEmail(ctx, emailData)
+	// AI処理の実行 - messageIDを渡すように修正
+	aiResponse, err := h.aiService.ProcessEmail(ctx, emailData, messageID)
 	if err != nil {
 		// エラーレスポンスの保存
 		errorResponse := models.NewErrorResponse(messageID, err)

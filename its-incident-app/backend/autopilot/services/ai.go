@@ -45,20 +45,22 @@ func NewAIService(cfg *config.AIConfig) *AIService {
 	return service
 }
 
-func (s *AIService) ProcessEmail(ctx context.Context, emailData *models.EmailData) (*models.AIResponse, error) {
+func (s *AIService) ProcessEmail(ctx context.Context, emailData *models.EmailData, messageID string) (*models.AIResponse, error) {
 	// リクエストの開始をDEBUGレベルで記録
 	logger.Logger.Debug("AI処理を開始します",
+		zap.String("message_id", messageID),
 		zap.String("subject", emailData.Subject))
 
 	var lastErr error
 	var response *models.AIResponse
 
 	for attempt := 1; attempt <= s.config.MaxRetries; attempt++ {
-		response, lastErr = s.processEmailWithContext(ctx, emailData)
+		response, lastErr = s.processEmailWithContext(ctx, emailData, messageID)
 		if lastErr == nil {
 			// 成功時はINFOレベル
 			logger.Logger.Info("AI処理が完了しました",
 				zap.String("task_id", response.TaskID),
+				zap.String("message_id", messageID),
 				zap.Int("attempt", attempt))
 			return response, nil
 		}
@@ -98,7 +100,7 @@ func (s *AIService) ProcessEmail(ctx context.Context, emailData *models.EmailDat
 	return response, fmt.Errorf("all retry attempts failed: %v", lastErr)
 }
 
-func (s *AIService) processEmailWithContext(ctx context.Context, emailData *models.EmailData) (*models.AIResponse, error) {
+func (s *AIService) processEmailWithContext(ctx context.Context, emailData *models.EmailData, messageID string) (*models.AIResponse, error) {
 	if err := s.validateConfig(); err != nil {
 		return nil, err
 	}
@@ -106,13 +108,15 @@ func (s *AIService) processEmailWithContext(ctx context.Context, emailData *mode
 	apiPayload := models.APIPayload{
 		User: "system",
 		Inputs: struct {
-			Subject string `json:"subject"`
-			From    string `json:"from"`
-			Body    string `json:"body"`
+			Subject   string `json:"subject"`
+			From      string `json:"from"`
+			Body      string `json:"body"`
+			MessageID string `json:"message_id"`
 		}{
-			Subject: emailData.Subject,
-			From:    emailData.From,
-			Body:    emailData.Body,
+			Subject:   emailData.Subject,
+			From:      emailData.From,
+			Body:      emailData.Body,
+			MessageID: messageID,
 		},
 	}
 

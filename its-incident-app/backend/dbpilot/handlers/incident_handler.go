@@ -13,11 +13,6 @@ import (
 	"gorm.io/gorm"
 )
 
-type CreateIncidentRelationRequest struct {
-	IncidentID        uint `json:"incident_id"`
-	RelatedIncidentID uint `json:"related_incident_id"`
-}
-
 func CreateIncident(db *gorm.DB) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		logFields := []zap.Field{
@@ -210,44 +205,5 @@ func CreateIncident(db *gorm.DB) gin.HandlerFunc {
 				"api_data": apiData,
 			},
 		})
-	}
-}
-
-func CreateIncidentRelation(db *gorm.DB) gin.HandlerFunc {
-	return func(c *gin.Context) {
-		logFields := []zap.Field{
-			zap.String("handler", "CreateIncidentRelation"),
-			zap.String("method", c.Request.Method),
-			zap.String("path", c.Request.URL.Path),
-		}
-
-		var req CreateIncidentRelationRequest
-		if err := c.ShouldBindJSON(&req); err != nil {
-			logger.Logger.Error("リクエストのバインドに失敗しました",
-				append(logFields, zap.Error(err))...)
-			c.JSON(http.StatusBadRequest, gin.H{"error": "Invalid request"})
-			return
-		}
-
-		logFields = append(logFields,
-			zap.Uint("incident_id", req.IncidentID),
-			zap.Uint("related_incident_id", req.RelatedIncidentID))
-
-		relation := models.IncidentRelation{
-			IncidentID:        req.IncidentID,
-			RelatedIncidentID: req.RelatedIncidentID,
-		}
-
-		if err := db.Create(&relation).Error; err != nil {
-			logger.Logger.Error("インシデント関連の作成に失敗しました",
-				append(logFields, zap.Error(err))...)
-			c.JSON(http.StatusInternalServerError, gin.H{"error": "Failed to create incident relation"})
-			return
-		}
-
-		logger.Logger.Info("インシデント関連を作成しました",
-			append(logFields, zap.Uint("relation_id", relation.ID))...)
-
-		c.JSON(http.StatusOK, gin.H{"message": "Incident relation created successfully", "id": relation.ID})
 	}
 }

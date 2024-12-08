@@ -120,7 +120,7 @@ const TopTable = ({ onIncidentClick }: TopTableProps) => {
                         <Table>
                             <TableHeader className="sticky top-0 z-10000">
                                 <TableRow>
-                                    <TableHead className="w-[100px]">ID</TableHead>
+                                    <TableHead className="w-[70px]">ID</TableHead>
                                     <TableHead className="w-[130px]">ステータス</TableHead>
                                     <TableHead className="w-[10px]"></TableHead>
                                     <TableHead className="w-[100px]">判定</TableHead>

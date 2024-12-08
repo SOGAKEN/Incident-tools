@@ -468,6 +468,7 @@ func GetEmailDataWithIncident(db *gorm.DB) gin.HandlerFunc {
 		err := db.Preload("Incident.Responses").
 			Preload("Incident.Relations").
 			Preload("Incident.Relations.RelatedIncident").
+			Preload("Incident.Relations.RelatedIncident.APIData").
 			Preload("Incident.APIData").
 			Preload("Incident.Status").
 			Where("message_id = ?", messageID).

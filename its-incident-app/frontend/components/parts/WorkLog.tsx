@@ -59,12 +59,13 @@ const WorkLog = ({ isWorkflowLogExpanded, onClick, data }: WorkLog) => {
             >
                 <div className="text-m font-bold dark:text-black flex gap-3 items-center">
                     <div className="flex items-center gap-2">
-                        <Brain className="inline-block" /> 判別結果：{data.APIData.Final}
+                        <Brain className="inline-block w-[35px]" />
+                        <span className="text-sm">判別結果：{data.APIData.Final}</span>
                     </div>
                     <ChevronsRight className="inline-block w-[30px] " />
                     <div className="w-[150px] flex items-center gap-2">
                         <Bot className="inline-block" />
-                        {data.APIData.Judgment}
+                        <span className="text-sm">{data.APIData.Judgment}</span>
                     </div>
                 </div>
                 {isWorkflowLogExpanded ? <ChevronDown className="h-6 w-6" /> : <ChevronUp className="h-6 w-6" />}
@@ -84,19 +85,19 @@ const WorkLog = ({ isWorkflowLogExpanded, onClick, data }: WorkLog) => {
                                     return (
                                         <div key={index}>
                                             <CardHeader>
-                                                <CardTitle>
+                                                <CardTitle className="text-base">
                                                     判断 {index + 1}：{parsedData.answer}
                                                 </CardTitle>
                                             </CardHeader>
                                             <CardContent>
                                                 {/* <div key={key} className="p-2"> */}
-                                                <div className="p-2">
-                                                    <div className="text-base font-bold pb-2">根拠：{parsedData.evidence}</div>
-                                                    <div className="text-base font-bold pb-2">判断：{parsedData.judgment}</div>
+                                                <div className="p-1">
+                                                    <div className="text-sm font-bold pb-2">根拠：{parsedData.evidence}</div>
+                                                    <div className="text-sm font-bold pb-2">判断：{parsedData.judgment}</div>
 
-                                                    {parsedData.time ? <div className="text-base font-bold pb-2">障害検知時刻：{parsedData.judgment}</div> : ''}
-                                                    {parsedData.pastResponseHitsoty ? <div className="text-base font-bold pb-2">過去対応：{parsedData.time}</div> : ''}
-                                                    {parsedData.attention ? <div className="text-base font-bold pb-2 text-red-500">※ {parsedData.attention}</div> : ''}
+                                                    {parsedData.time ? <div className="text-sm font-bold pb-2">障害検知時刻：{parsedData.judgment}</div> : ''}
+                                                    {parsedData.pastResponseHitsoty ? <div className="text-sm font-bold pb-2">過去対応：{parsedData.time}</div> : ''}
+                                                    {parsedData.attention ? <div className="text-sm font-bold pb-2 text-red-500">※ {parsedData.attention}</div> : ''}
                                                 </div>
                                             </CardContent>
                                         </div>
@@ -118,6 +119,7 @@ const WorkLog = ({ isWorkflowLogExpanded, onClick, data }: WorkLog) => {
                             })}
                         </Card>
                     ))}
+                    <div className="text-white dark:text-black">{data.MessageID}</div>
                 </div>
             )}
         </div>

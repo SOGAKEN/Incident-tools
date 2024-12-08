@@ -6,17 +6,17 @@ async function verifyToken(token: string): Promise<{ valid: boolean; email?: str
     try {
         // エラーハンドリングの強化
         if (!process.env.NEXT_PUBLIC_AUTH_SERVICE_URL) {
-            console.error('AUTH_SERVICE_URL is not defined')
+            // console.error('AUTH_SERVICE_URL is not defined')
             return { valid: false }
         }
 
         if (!token) {
-            console.error('Token is empty')
+            // console.error('Token is empty')
             return { valid: false }
         }
 
         const url = `${process.env.NEXT_PUBLIC_AUTH_SERVICE_URL}/verify-token?token=${token}`
-        console.log('Verification URL:', url)
+        // console.log('Verification URL:', url)
 
         const response = await fetch(url, {
             method: 'GET',
@@ -27,15 +27,15 @@ async function verifyToken(token: string): Promise<{ valid: boolean; email?: str
         })
 
         // レスポンスの詳細なログ
-        console.log('Verification response:', {
-            status: response.status,
-            statusText: response.statusText,
-            headers: Object.fromEntries(response.headers)
-        })
+        // console.log('Verification response:', {
+        //     status: response.status,
+        //     statusText: response.statusText,
+        //     headers: Object.fromEntries(response.headers)
+        // })
 
         if (!response.ok) {
             const errorText = await response.text()
-            console.error('Verification failed:', errorText)
+            // console.error('Verification failed:', errorText)
             return { valid: false }
         }
 
@@ -50,12 +50,12 @@ async function verifyToken(token: string): Promise<{ valid: boolean; email?: str
 export async function middleware(request: NextRequest) {
     try {
         // リクエスト情報の詳細なログ
-        console.log('Middleware execution started', {
-            url: request.url,
-            method: request.method,
-            headers: Object.fromEntries(request.headers),
-            cookies: Object.fromEntries(request.cookies)
-        })
+        // console.log('Middleware execution started', {
+        //     url: request.url,
+        //     method: request.method,
+        //     headers: Object.fromEntries(request.headers),
+        //     cookies: Object.fromEntries(request.cookies)
+        // })
 
         const { pathname, searchParams } = new URL(request.url)
         const token = searchParams.get('token')
@@ -63,16 +63,16 @@ export async function middleware(request: NextRequest) {
         const sessionId = request.cookies.get('session_id')?.value
 
         // 環境変数の確認
-        console.log('Environment variables:', {
-            NODE_ENV: process.env.NODE_ENV,
-            AUTH_SERVICE_URL: process.env.NEXT_PUBLIC_AUTH_SERVICE_URL,
-            IS_CLOUD_RUN: process.env.K_SERVICE ? 'yes' : 'no'
-        })
+        // console.log('Environment variables:', {
+        //     NODE_ENV: process.env.NODE_ENV,
+        //     AUTH_SERVICE_URL: process.env.NEXT_PUBLIC_AUTH_SERVICE_URL,
+        //     IS_CLOUD_RUN: process.env.K_SERVICE ? 'yes' : 'no'
+        // })
 
         if (token) {
             const verificationResult = await verifyToken(token)
-            console.log('Token verification result:', verificationResult)
-
+            // console.log('Token verification result:', verificationResult)
+            //
             if (verificationResult.valid && verificationResult.email) {
                 const targetUrl = new URL(redirectTo || '/account', request.url)
                 targetUrl.searchParams.set('email', verificationResult.email)
@@ -80,8 +80,8 @@ export async function middleware(request: NextRequest) {
                 const response = NextResponse.redirect(targetUrl)
 
                 // Cookie設定のデバッグログ
-                console.log('Setting cookie for domain:', new URL(request.url).hostname)
-
+                // console.log('Setting cookie for domain:', new URL(request.url).hostname)
+                //
                 // response.cookies.set('session_id', verificationResult.email, {
                 //     httpOnly: true,
                 //     secure: process.env.NODE_ENV === 'production',
@@ -93,7 +93,7 @@ export async function middleware(request: NextRequest) {
 
                 response.cookies.set('session_id', verificationResult.email, {
                     httpOnly: true,
-                    secure: process.env.NODE_ENV === 'production',
+                    secure: true,
                     sameSite: 'lax',
                     maxAge: 60 * 60 * 24,
                     domain: new URL(request.url).hostname,

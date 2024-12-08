@@ -59,8 +59,6 @@ const useAPIAction = (defaultConfig: Partial<ActionConfig>) => {
     const executeAction = async (config: Partial<ActionConfig> = {}) => {
         const mergedConfig = { ...defaultConfig, ...config }
 
-        console.log('Endpoint:', mergedConfig.endpoint)
-        console.log('Body:', mergedConfig.body)
         if (!mergedConfig.endpoint) {
             throw new Error('Endpoint is required for API action')
         }
@@ -119,7 +117,7 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
                     title: data?.EmailData.subject
                 }
             }),
-        vendor: () =>
+        vender: () =>
             responseAction.execute({
                 body: {
                     incident_id: data?.Incident.ID,
@@ -143,7 +141,7 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
     const handleAction = {
         complete: () => actions.complete(),
         escalation: () => actions.escalation(),
-        vendor: () => actions.vendor(),
+        vender: () => actions.vender(),
         response: () => {
             if (newResponse === '') return false
             actions.response()
@@ -155,8 +153,6 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
         setIsWorkflowLogExpanded(!isWorkflowLogExpanded)
     }
 
-    console.log(data)
-
     if (!data) return null
     if (isLoading) return <Loading />
 
@@ -165,7 +161,7 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
             <Dialog open={isOpen} onOpenChange={onClose}>
                 <DialogContent className="max-w-[80vw] w-full p-0 h-[95vh] flex flex-col dark:bg-black border-b border-white">
                     <DialogHeader className="p-[20px] flex flex-col bg-black dark dark:border-b-2 dark: border-b border-white">
-                        <DialogTitle className="text-white">
+                        <DialogTitle className="text-white text-base">
                             【ID:{data.EmailData.ID}】&nbsp;&nbsp;{data.EmailData.subject}
                         </DialogTitle>
                         <DialogDescription className="flex gap-5 pt-4">
@@ -196,10 +192,9 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
 }
 
 const EmailDisplay: React.FC<{ data: EmailData }> = ({ data }) => {
-    // メール表示部分のコンポーネント実装
     return (
         <div className="p-6 bg-gray-100 flex flex-col overflow-hidden dark:bg-black w-1/2">
-            <div className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-full dark:bg-black dark:border dark:border-white">
+            <div className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-[72vh] dark:bg-black dark:border dark:border-white">
                 <div className="flex-grow overflow-y-auto h-full">
                     <Accordion type="single" collapsible className="w-full" defaultValue="item-0">
                         <AccordionItem value="item-0" key={data.ID}>
@@ -207,61 +202,47 @@ const EmailDisplay: React.FC<{ data: EmailData }> = ({ data }) => {
                                 <div className="flex items-center space-x-2 text-left w-full">
                                     <MailIcon className="h-5 w-5 text-gray-500 flex-shrink-0 dark:text-white" />
                                     <div className="flex-grow min-w-0">
-                                        <div className="font-semibold truncate break-words whitespace-pre-wrap">{data.subject}</div>
+                                        <div className="font-semibold truncate break-words whitespace-pre-wrap text-sm">{data.subject}</div>
                                         <div className="text-sm text-gray-500 flex justify-between">
-                                            <span className="truncate">{data.from}</span>
-                                            <span className="flex-shrink-0 ml-2"> {format(data.CreatedAt, 'yyyy-MM-dd HH:mm')}</span>
+                                            <span className="truncate text-sm">{data.from}</span>
+                                            <span className="flex-shrink-0 ml-2 text-sm"> {format(data.CreatedAt, 'yyyy-MM-dd HH:mm')}</span>
                                         </div>
                                     </div>
                                 </div>
                             </AccordionTrigger>
                             <AccordionContent>
-                                <div className="p-4 space-y-2">
+                                <div className="p-4 space-y-2 max-h-[300px] overflow-y-scroll">
                                     <div>
-                                        <span className="font-semibold">From:</span> {data.from}
+                                        <span className="font-semibold text-sm">From:</span> {data.from}
                                     </div>
-                                    {/* <div>
-                                                        <span className="font-semibold">To:</span> {data.APIData.From}
-                                                    </div> */}
                                     <div>
-                                        <span className="font-semibold">Date:</span> {format(data.CreatedAt, 'yyyy-MM-dd HH:mm')}
+                                        <span className="font-semibold text-sm">Date:</span> {format(data.CreatedAt, 'yyyy-MM-dd HH:mm')}
                                     </div>
                                     <Separator className="my-4" />
-                                    <div className="whitespace-pre-wrap">{data.body}</div>
+                                    <div className="whitespace-pre-wrap text-sm">{data.body}</div>
                                 </div>
                             </AccordionContent>
                         </AccordionItem>
-                        {data.Relations && data.Relations.length > 0 && (
+                        {data.Incident.Relations && data.Incident.Relations.length > 0 && (
                             <div>
                                 <div className="px-4 py-2 font-semibold text-gray-700 bg-gray-100">関連メール</div>
-                                {data.Relations.map((relatedIncident, index) => (
-                                    <AccordionItem value={`item-${index + 1}`} key={relatedIncident.RelatedIncident.ID}>
+                                {data.Incident.Relations.map((relatedIncident, index) => (
+                                    <AccordionItem value={`item-${index + 1}`} key={relatedIncident.ID}>
                                         <AccordionTrigger className="px-4 py-2 hover:bg-gray-50">
                                             <div className="flex items-center space-x-2 text-left w-full">
                                                 <MailIcon className="h-5 w-5 text-gray-500 flex-shrink-0 dark:text-white" />
                                                 <div className="flex-grow min-w-0">
-                                                    <div className="font-semibold truncate">{relatedIncident.RelatedIncident.Subject}</div>
+                                                    <div className="font-semibold text-xs">{relatedIncident.RelatedIncident?.APIData?.Subject}</div>
                                                     <div className="text-sm text-gray-500 flex justify-between">
-                                                        <span className="truncate">{relatedIncident.RelatedIncident.FromEmail}</span>
-                                                        <span className="flex-shrink-0 ml-2">{format(relatedIncident.RelatedIncident.Datetime, 'yyyy-MM-dd HH:mm')}</span>
+                                                        <span className="truncate text-xs">{relatedIncident.RelatedIncident.APIData.From}</span>
+                                                        <span className="flex-shrink-0 ml-2 text-xs">{format(relatedIncident.RelatedIncident.CreatedAt, 'yyyy-MM-dd HH:mm')}</span>
                                                     </div>
                                                 </div>
                                             </div>
                                         </AccordionTrigger>
                                         <AccordionContent>
-                                            <div className="p-4 space-y-2">
-                                                <div>
-                                                    <span className="font-semibold">From:</span> {relatedIncident.RelatedIncident.FromEmail}
-                                                </div>
-                                                <div>
-                                                    <span className="font-semibold">To:</span> {relatedIncident.RelatedIncident.ToEmail}
-                                                </div>
-                                                <div>
-                                                    <span className="font-semibold">Date:</span>
-                                                    {format(relatedIncident.RelatedIncident.Datetime, 'yyyy-MM-dd HH:mm')}
-                                                </div>
-                                                <Separator className="my-4" />
-                                                <div className="whitespace-pre-wrap">{relatedIncident.RelatedIncident.Content}</div>
+                                            <div className="p-4 space-y-2 max-h-[300px] overflow-y-scroll">
+                                                <div className="whitespace-pre-wrap text-xs">{relatedIncident.RelatedIncident.APIData.Body}</div>
                                             </div>
                                         </AccordionContent>
                                     </AccordionItem>
@@ -291,7 +272,7 @@ const ActionPane: React.FC<{
                 <div className="flex-grow">
                     <div className="flex justify-between items-center mb-2">
                         <h4 className="font-semibold">対応履歴</h4>
-                        <Button onClick={handleAction.escaretion} variant="destructive" className="flex items-center">
+                        <Button onClick={handleAction.escalation} variant="destructive" className="flex items-center">
                             <AlertTriangle className="mr-2 h-4 w-4" />
                             エスカレーション
                         </Button>
