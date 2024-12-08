@@ -126,7 +126,7 @@ const TopTable = ({ onIncidentClick }: TopTableProps) => {
                                     <TableHead className="w-[100px]">判定</TableHead>
                                     <TableHead>日時</TableHead>
                                     <TableHead>内容</TableHead>
-                                    <TableHead>担当者</TableHead>
+                                    <TableHead className="w-[150px]">担当者</TableHead>
                                 </TableRow>
                             </TableHeader>
                             <TableBody>
