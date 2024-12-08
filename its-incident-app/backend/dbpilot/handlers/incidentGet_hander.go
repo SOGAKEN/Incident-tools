@@ -383,18 +383,18 @@ func GetEmailDataAll(db *gorm.DB) gin.HandlerFunc {
 				Distinct("assignee").
 				Order("assignee ASC")
 
-			if len(req.Status) > 0 {
-				var statusIDs []uint
-				if err := tx.Model(&models.IncidentStatus{}).
-					Where("name IN ?", req.Status).
-					Pluck("id", &statusIDs).Error; err != nil {
-					return err
-				}
-				assigneeQuery = assigneeQuery.Where("status_id IN ?", statusIDs)
-			}
-			if !fromTime.IsZero() || !toTime.IsZero() {
-				assigneeQuery = assigneeQuery.Where("datetime BETWEEN ? AND ?", fromTime, toTime)
-			}
+			// if len(req.Status) > 0 {
+			// 	var statusIDs []uint
+			// 	if err := tx.Model(&models.IncidentStatus{}).
+			// 		Where("name IN ?", req.Status).
+			// 		Pluck("id", &statusIDs).Error; err != nil {
+			// 		return err
+			// 	}
+			// 	assigneeQuery = assigneeQuery.Where("status_id IN ?", statusIDs)
+			// }
+			// if !fromTime.IsZero() || !toTime.IsZero() {
+			// 	assigneeQuery = assigneeQuery.Where("datetime BETWEEN ? AND ?", fromTime, toTime)
+			// }
 
 			if err := assigneeQuery.Pluck("assignee", &uniqueAssignees).Error; err != nil {
 				return err

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Button } from '@/components/ui/button'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -20,15 +20,15 @@ const statusItems = [
 
 interface SearchComponentProps {
     initialSelectedStatuses?: string[]
-    initialSelectAssignees?: string[]
-    uniqueAssignees?: string[]
+    initialSelectAssignees: string[]
+    uniqueAssignees: string[]
     initialDateRange?: DateRange
     onSearchAction: (selectedStatuses: string[], dateRange: DateRange | undefined, selectUniqueAssignees: string[]) => Promise<void>
 }
 
 export function SearchComponent({ initialSelectedStatuses = [], initialSelectAssignees = [], uniqueAssignees = [], initialDateRange, onSearchAction }: SearchComponentProps) {
     const [selectedStatuses, setSelectedStatuses] = useState<string[]>(initialSelectedStatuses)
-    const [selectUniqueAssignees, setUniqueAssignees] = useState<string[]>(initialSelectAssignees)
+    const [selectUniqueAssignees, setUniqueAssignees] = useState<string[]>(initialSelectAssignees?.length === 0 ? uniqueAssignees : initialSelectAssignees || uniqueAssignees)
     const [dateRange, setDateRange] = useState<DateRange | undefined>(initialDateRange)
 
     const assigneeList = uniqueAssignees

@@ -22,7 +22,7 @@ interface TopTableProps {
 
 const TopTable = ({ onIncidentClick }: TopTableProps) => {
     const [checkSatatus, setcheckStatas] = useState<string[]>(['未着手', '調査中', '失敗'])
-    const [checkAssignees, setcheckAssignees] = useState<string[]>()
+    const [checkAssignees, setcheckAssignees] = useState<string[]>([])
     const [fromStatus, setFromStatus] = useState<Date | undefined>(undefined)
     const [toStatus, setToStatus] = useState<Date | undefined>(undefined)
     const [queryParam, setQueryParam] = useState<string>('未着手%2C調査中%2C失敗')
@@ -37,9 +37,6 @@ const TopTable = ({ onIncidentClick }: TopTableProps) => {
             refreshInterval: 5000
         }
     })
-    useEffect(() => {
-        setcheckAssignees(data?.unique_assignees)
-    }, [data?.unique_assignees])
 
     const handleSearch = async (selectedStatuses: string[], dateRange: DateRange | undefined, selectUniqueAssignees: string[]): Promise<void> => {
         // ステータスの処理
