@@ -159,7 +159,7 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
     return (
         <div>
             <Dialog open={isOpen} onOpenChange={onClose}>
-                <DialogContent className="max-w-[80vw] w-full p-0 h-[95vh] flex flex-col dark:bg-black border-b border-white">
+                <DialogContent className="max-w-[80vw] w-full p-0 h-[95vh] flex flex-col dark:bg-background border-b border-white">
                     <DialogHeader className="p-[20px] flex flex-col bg-black dark dark:border-b-2 dark: border-b border-white">
                         <DialogTitle className="text-white text-base">
                             【ID:{data.EmailData.ID}】&nbsp;&nbsp;{data.EmailData.subject}
@@ -193,12 +193,12 @@ const DialogWindow = ({ isOpen, onClose, incident }: DialogProps) => {
 
 const EmailDisplay: React.FC<{ data: EmailData }> = ({ data }) => {
     return (
-        <div className="p-6 bg-gray-100 flex flex-col overflow-hidden dark:bg-black w-1/2">
+        <div className="p-6 bg-gray-100 flex flex-col overflow-hidden  dark:bg-background w-1/2">
             <div className="bg-white rounded-lg shadow-md overflow-hidden flex flex-col h-[72vh] dark:bg-black dark:border dark:border-white">
                 <div className="flex-grow overflow-y-auto h-full">
                     <Accordion type="single" collapsible className="w-full" defaultValue="item-0">
                         <AccordionItem value="item-0" key={data.ID}>
-                            <AccordionTrigger className="px-4 py-2 hover:bg-gray-50 dark:hover:bg-gray-700">
+                            <AccordionTrigger className="px-4 py-2 hover:bg-opacity-30">
                                 <div className="flex items-center space-x-2 text-left w-full">
                                     <MailIcon className="h-5 w-5 text-gray-500 flex-shrink-0 dark:text-white" />
                                     <div className="flex-grow min-w-0">
@@ -228,7 +228,7 @@ const EmailDisplay: React.FC<{ data: EmailData }> = ({ data }) => {
                                 <div className="px-4 py-2 font-semibold text-gray-700 bg-gray-100">関連メール</div>
                                 {data.Incident.Relations.map((relatedIncident, index) => (
                                     <AccordionItem value={`item-${index + 1}`} key={relatedIncident.ID}>
-                                        <AccordionTrigger className="px-4 py-2 hover:bg-gray-50">
+                                        <AccordionTrigger className="px-4 py-2 hover:bg-opacity-30">
                                             <div className="flex items-center space-x-2 text-left w-full">
                                                 <MailIcon className="h-5 w-5 text-gray-500 flex-shrink-0 dark:text-white" />
                                                 <div className="flex-grow min-w-0">

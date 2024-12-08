@@ -49,7 +49,7 @@ const WorkLog = ({ isWorkflowLogExpanded, onClick, data }: WorkLog) => {
     }, [data])
 
     return (
-        <div className={`fixed left-0 bottom-0 w-[49.8%] bg-white shadow-lg transition-all duration-300 ease-in-out ${isWorkflowLogExpanded ? 'h-[calc(100%-10%)]' : 'h-20'} pr-1 dark:bg-black`}>
+        <div className={`fixed left-0 bottom-0 w-[49.8%] bg-white shadow-lg transition-all duration-300 ease-in-out ${isWorkflowLogExpanded ? 'h-[calc(100%-10%)]' : 'h-20'} pr-1 dark:bg-background`}>
             <button
                 className="w-full h-20 flex items-center justify-between px-4 text-left font-semibold bg-yellow-100 hover:bg-yellow-100 focus:outline-none dark:text-black"
                 style={{
