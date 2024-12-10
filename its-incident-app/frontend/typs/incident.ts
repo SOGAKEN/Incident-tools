@@ -46,6 +46,7 @@ interface EmailData {
     CreatedAt: number
     body: string
     Relations: any[]
+    message_id: string
 }
 
 interface GAIResponse {

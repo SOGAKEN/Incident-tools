@@ -1,6 +1,6 @@
 'use client'
 import { useFetch } from '@/hooks/useFetch'
-import { type Incident, type IncidentsApiResponse } from '@/typs/incident'
+import { EmailData, type Incident, type IncidentsApiResponse } from '@/typs/incident'
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
@@ -14,6 +14,8 @@ import PageNation from '../parts/PageNation'
 import GetStatusIcon from '../parts/GetStatusIcon'
 import { SearchComponent } from '../parts/Search'
 import { DateRange } from 'react-day-picker'
+
+import { RightSidebar } from '@/components/parts/RightSidebar'
 
 interface TopTableProps {
     onIncidentClick: (incident: Incident) => void
@@ -31,6 +33,9 @@ const TopTable = ({ onIncidentClick }: TopTableProps) => {
     const [limit, setLimit] = useState(100)
     const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set())
     const [selectAll, setSelectAll] = useState(false)
+    const [checkedMessageId, setCheckedMessageId] = useState<string[]>([])
+    const [allInfo, setAllInfo] = useState<EmailData[]>([])
+    const [uniqHost, setUniqHost] = useState<string[]>([])
 
     const { data, isLoading } = useFetch<IncidentsApiResponse>(`/api/getIncidentAll?page=${page}&limit=${limit}&status=${queryParam}${dateParam}&assignee=${queryAssignee}`, {
         useSWR: true,
@@ -65,6 +70,39 @@ const TopTable = ({ onIncidentClick }: TopTableProps) => {
             setDateParam('')
         }
     }
+    const getSelectedMessageIds = (): string[] => {
+        if (!data) return []
+        return data.data.filter((incident) => selectedRows.has(incident.ID)).map((incident) => incident.message_id)
+    }
+    const getSelectedIncidents = () => {
+        if (!data) return []
+        return data.data.filter((incident) => selectedRows.has(incident.ID))
+    }
+    const getSelectedUniqueHosts = () => {
+        if (!data) return []
+
+        const uniqueHosts = new Set<string>()
+
+        data.data
+            .filter((incident) => selectedRows.has(incident.ID))
+            .forEach((incident) => {
+                const host = incident.Incident?.APIData?.Host
+                if (host) {
+                    uniqueHosts.add(host)
+                }
+            })
+
+        return Array.from(uniqueHosts)
+    }
+
+    useEffect(() => {
+        const messageIds = getSelectedMessageIds()
+        const allinfomation = getSelectedIncidents()
+        const uniqhost = getSelectedUniqueHosts()
+        setCheckedMessageId(messageIds)
+        setAllInfo(allinfomation)
+        setUniqHost(uniqhost)
+    }, [selectedRows, data])
 
     const handleAllCheckChange = (checked: boolean) => {
         setSelectAll(checked)
@@ -155,8 +193,15 @@ const TopTable = ({ onIncidentClick }: TopTableProps) => {
                         <TableBody>
                             {data.data.map((incident) => {
                                 if (!incident.Incident) return null
+                                const isSelected = selectedRows.has(incident.ID)
+
                                 return (
-                                    <TableRow key={incident.ID} onClick={() => onIncidentClick(incident.Incident)} className="cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700">
+                                    <TableRow
+                                        key={incident.ID}
+                                        onClick={() => onIncidentClick(incident.Incident)}
+                                        className={`cursor-pointer hover:bg-gray-100 dark:hover:bg-gray-700 
+                                            ${isSelected ? 'bg-gray-100 dark:bg-gray-700' : ''}`}
+                                    >
                                         <TableCell onClick={(e) => e.stopPropagation()}>
                                             <div className="flex items-center">
                                                 <Checkbox checked={selectedRows.has(incident.ID)} onCheckedChange={(checked) => handleRowCheckChange(!!checked, incident.ID)} />
@@ -196,6 +241,13 @@ const TopTable = ({ onIncidentClick }: TopTableProps) => {
                             })}
                         </TableBody>
                     </Table>
+                    {checkedMessageId.length === 0 ? (
+                        ''
+                    ) : (
+                        <div className="mt-1">
+                            <RightSidebar mesasge_id={checkedMessageId} uniqe_host={uniqHost} />
+                        </div>
+                    )}
                 </CardContent>
                 <PageNation props={data.meta} handlers={handlers} displayLimit={limit} />
             </Card>

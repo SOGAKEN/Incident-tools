@@ -127,6 +127,7 @@ func setupRouter(db *gorm.DB, cfg *config.ServerConfig) *gin.Engine {
 
 		// レスポンス関連
 		protected.POST("/responses", handlers.CreateResponse(db))
+		protected.POST("/incidents/bulk-status", handlers.BulkUpdateProcessingStatus(db))
 
 		// ユーザー関連
 		protected.POST("/users-update", handlers.UpdateUser(db))
